@@ -18,6 +18,8 @@ alloy = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true }
+futures = { workspace = true }
+futures-util = { workspace = true }
 rust_decimal = { workspace = true }
 secrecy = { workspace = true }
 serde = { workspace = true }
