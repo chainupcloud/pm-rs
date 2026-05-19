@@ -285,18 +285,9 @@ async fn delete_with_nonce(
     _key: uuid::Uuid,
     nonce: u32,
 ) -> anyhow::Result<()> {
-    // The SDK's `Client::delete_api_key` currently hard-codes nonce = 0 (the only value any
-    // current consumer needs). For non-zero nonces the server identifies the row by
-    // `(address, scope, nonce)` but we lack a public Client::delete_api_key_with_nonce
-    // helper; tracked in PHASE2_NOTES.md.
-    if nonce != 0 {
-        anyhow::bail!(
-            "delete-key with --nonce != 0 is not yet wired: the SDK helper currently hard-codes \
-             nonce=0. Open an issue or pass --nonce 0 (and confirm with the server admin which \
-             nonce the key was bound to)."
-        );
-    }
-    client.delete_api_key(signer, uuid::Uuid::nil()).await?;
+    client
+        .delete_api_key_with_nonce(signer, uuid::Uuid::nil(), nonce)
+        .await?;
     Ok(())
 }
 

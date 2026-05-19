@@ -203,6 +203,46 @@ async fn delete_api_key_uses_delete() {
     assert_eq!(requests.len(), 1);
     assert_eq!(requests[0].method.as_str(), "DELETE");
     assert_l1_headers(&requests[0]);
+    // The convenience wrapper hard-codes nonce = 0.
+    assert_eq!(
+        requests[0]
+            .headers
+            .get(header::PRED_NONCE)
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "0"
+    );
+}
+
+#[tokio::test]
+async fn delete_api_key_with_nonce_threads_nonce_through_header() {
+    let server = MockServer::start().await;
+    Mock::given(method("DELETE"))
+        .and(path("/auth/api-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"success": true})))
+        .mount(&server)
+        .await;
+
+    let client = client_for(&server, false).await;
+    client
+        .delete_api_key_with_nonce(&signer(), Uuid::nil(), 7)
+        .await
+        .expect("delete_api_key_with_nonce");
+
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].method.as_str(), "DELETE");
+    assert_l1_headers(&requests[0]);
+    assert_eq!(
+        requests[0]
+            .headers
+            .get(header::PRED_NONCE)
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "7"
+    );
 }
 
 #[tokio::test]

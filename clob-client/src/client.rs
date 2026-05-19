@@ -280,10 +280,24 @@ impl Client {
     /// The `key` argument is accepted for API symmetry with the rs-clob-client method but is
     /// **not** sent — the server identifies the row by `(address, scope, nonce)` and ignores
     /// any body. Pass [`Uuid::nil`] if you only have `(signer, nonce)` in hand.
+    ///
+    /// This method targets `nonce = 0`. For other nonces use [`Self::delete_api_key_with_nonce`].
     pub async fn delete_api_key(&self, signer: &PMCup26Signer, key: Uuid) -> Result<()> {
+        self.delete_api_key_with_nonce(signer, key, 0).await
+    }
+
+    /// `DELETE /auth/api-key` for an L2 credential bound to a specific `nonce`.
+    ///
+    /// The server identifies the row by `(address, scope, nonce)`; pass [`Uuid::nil`] for `key`
+    /// if you only have the nonce.
+    pub async fn delete_api_key_with_nonce(
+        &self,
+        signer: &PMCup26Signer,
+        key: Uuid,
+        nonce: u32,
+    ) -> Result<()> {
         let _ = key;
-        // DELETE uses the same L1 headers as POST / GET (nonce defaults to 0).
-        let headers = build_l1_headers(signer, None)?;
+        let headers = build_l1_headers(signer, Some(nonce))?;
         let resp = self
             .send_with_headers(Method::DELETE, "/auth/api-key", None, headers, None)
             .await?;

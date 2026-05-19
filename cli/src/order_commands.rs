@@ -29,6 +29,12 @@ use crate::output::{self, Format};
 pub enum OrderCommand {
     /// Build, sign, then `POST /order`. Use `--dry-run` to inspect the JSON without posting.
     Create(CreateArgs),
+    /// Market-order shortcut: equivalent to `pm order create --market`, with a slimmer flag set.
+    /// Default `--order-type` is `fak`.
+    Market(MarketArgs),
+    /// Build N signed orders sharing the same side / fee / signer, then `POST /orders`. Up to 15
+    /// per batch. Mirrors `polymarket clob post-orders`.
+    PostBatch(PostBatchArgs),
     /// `DELETE /order` by id.
     Cancel(CancelArgs),
     /// `DELETE /orders` — batch cancel up to 3000 ids (comma-separated).
@@ -105,6 +111,129 @@ pub struct CreateArgs {
     #[arg(long)]
     pub salt: Option<String>,
     /// Print the signed order JSON and exit — do NOT POST.
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+/// `pm order market` — slim args for market orders. All optional flags carry the same
+/// semantics as the `--market` path of `pm order create`.
+#[derive(Debug, Args)]
+pub struct MarketArgs {
+    /// Token id (uint256 decimal). Required.
+    #[arg(long)]
+    pub token: String,
+    /// Order side.
+    #[arg(long, value_enum)]
+    pub side: SideArg,
+    /// Market-order amount in USDC. BUY only; mutually exclusive with `--size`.
+    #[arg(long, conflicts_with = "size")]
+    pub amount: Option<Decimal>,
+    /// Market-order amount in shares. SELL must use this; BUY may use it instead of `--amount`.
+    #[arg(long)]
+    pub size: Option<Decimal>,
+    /// Override the default order type (`FAK`). Use `FOK` for fill-or-kill.
+    #[arg(long, value_enum)]
+    pub order_type: Option<OrderTypeArg>,
+    /// Optional limit price fallback in (0, 1) — chainup performs market matching server-side
+    /// but a price field is required on the wire.
+    #[arg(long)]
+    pub price: Option<Decimal>,
+    /// Server-side rotation nonce (default 0).
+    #[arg(long, default_value_t = 0)]
+    pub nonce: u64,
+    /// Fee rate in basis points — required.
+    #[arg(long)]
+    pub fee_rate_bps: u64,
+    /// Maker (Safe-wallet) address. Required for `--signature-type gnosis-safe` (default).
+    #[arg(long)]
+    pub maker: Option<String>,
+    /// Taker address (default zero = any taker).
+    #[arg(long)]
+    pub taker: Option<String>,
+    /// EIP-712 signature type. Default `gnosis-safe`.
+    #[arg(long, value_enum, default_value = "gnosis-safe")]
+    pub signature_type: SignatureTypeArg,
+    /// Optional `owner` UUID. When empty the server uses the API-key owner.
+    #[arg(long)]
+    pub owner: Option<String>,
+    /// Optional salt (uint256 decimal). When omitted the SDK uses an ns-time seed.
+    #[arg(long)]
+    pub salt: Option<String>,
+    /// Print the signed order JSON and exit — do NOT POST.
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+impl MarketArgs {
+    /// Re-pack as a `CreateArgs` with `--market` forced. Keeps the signing path single-sourced.
+    fn to_create_args(&self) -> CreateArgs {
+        CreateArgs {
+            token: self.token.clone(),
+            side: self.side,
+            price: self.price,
+            size: self.size,
+            amount: self.amount,
+            market: true,
+            limit: false,
+            order_type: self.order_type,
+            post_only: false,
+            expiration: None,
+            nonce: self.nonce,
+            fee_rate_bps: self.fee_rate_bps,
+            maker: self.maker.clone(),
+            taker: self.taker.clone(),
+            signature_type: self.signature_type,
+            owner: self.owner.clone(),
+            salt: self.salt.clone(),
+            dry_run: self.dry_run,
+        }
+    }
+}
+
+/// `pm order post-batch` — N orders sharing side / fee / maker / signature-type, with
+/// per-token price + size. Up to 15 orders per batch (server limit).
+#[derive(Debug, Args)]
+pub struct PostBatchArgs {
+    /// Comma-separated token ids (uint256 decimal). Required.
+    #[arg(long)]
+    pub tokens: String,
+    /// Comma-separated limit prices, matching `--tokens` length. Required.
+    #[arg(long)]
+    pub prices: String,
+    /// Comma-separated sizes (shares), matching `--tokens` length. Required.
+    #[arg(long)]
+    pub sizes: String,
+    /// Shared side for every order in the batch.
+    #[arg(long, value_enum)]
+    pub side: SideArg,
+    /// Shared order type. Default `GTC` (limit). Use `FAK` / `FOK` for market batches.
+    #[arg(long, value_enum, default_value = "gtc")]
+    pub order_type: OrderTypeArg,
+    /// Shared `postOnly` flag — limit orders only.
+    #[arg(long)]
+    pub post_only: bool,
+    /// Shared expiration. Required when `--order-type GTD`.
+    #[arg(long)]
+    pub expiration: Option<u64>,
+    /// Shared server-side rotation nonce (default 0).
+    #[arg(long, default_value_t = 0)]
+    pub nonce: u64,
+    /// Shared fee rate in basis points — required.
+    #[arg(long)]
+    pub fee_rate_bps: u64,
+    /// Shared maker (Safe-wallet) address. Required for `--signature-type gnosis-safe`.
+    #[arg(long)]
+    pub maker: Option<String>,
+    /// Shared taker address (default zero = any taker).
+    #[arg(long)]
+    pub taker: Option<String>,
+    /// Shared EIP-712 signature type. Default `gnosis-safe`.
+    #[arg(long, value_enum, default_value = "gnosis-safe")]
+    pub signature_type: SignatureTypeArg,
+    /// Optional shared `owner` UUID. When empty the server uses the API-key owner.
+    #[arg(long)]
+    pub owner: Option<String>,
+    /// Print the signed envelope array and exit — do NOT POST.
     #[arg(long)]
     pub dry_run: bool,
 }
@@ -220,6 +349,8 @@ pub struct TradeArgs {
 pub async fn run(args: &Cli, sub: &OrderCommand, fmt: Format) -> anyhow::Result<()> {
     match sub {
         OrderCommand::Create(a) => run_create(args, a, fmt).await,
+        OrderCommand::Market(a) => run_market(args, a, fmt).await,
+        OrderCommand::PostBatch(a) => run_post_batch(args, a, fmt).await,
         OrderCommand::Cancel(a) => run_cancel(args, a, fmt).await,
         OrderCommand::CancelMany(a) => run_cancel_many(args, a, fmt).await,
         OrderCommand::CancelMarket(a) => run_cancel_market(args, a, fmt).await,
@@ -290,6 +421,123 @@ async fn run_create(args: &Cli, a: &CreateArgs, fmt: Format) -> anyhow::Result<(
     })
     .await?;
     print_post_order(&resp, fmt)
+}
+
+async fn run_market(args: &Cli, a: &MarketArgs, fmt: Format) -> anyhow::Result<()> {
+    let create = a.to_create_args();
+    run_create(args, &create, fmt).await
+}
+
+async fn run_post_batch(args: &Cli, a: &PostBatchArgs, fmt: Format) -> anyhow::Result<()> {
+    let tokens = split_csv(&a.tokens);
+    let prices_s = split_csv(&a.prices);
+    let sizes_s = split_csv(&a.sizes);
+    if tokens.len() != prices_s.len() || tokens.len() != sizes_s.len() {
+        return Err(anyhow!(
+            "--tokens / --prices / --sizes must all have the same length (got {} / {} / {})",
+            tokens.len(),
+            prices_s.len(),
+            sizes_s.len()
+        ));
+    }
+    if tokens.is_empty() {
+        return Err(anyhow!("post-batch requires at least one order"));
+    }
+    if tokens.len() > 15 {
+        return Err(anyhow!(
+            "chainup accepts at most 15 orders per batch (got {})",
+            tokens.len()
+        ));
+    }
+    let prices: Vec<Decimal> = prices_s
+        .iter()
+        .map(|s| {
+            Decimal::from_str(s).with_context(|| format!("invalid price '{s}' in --prices"))
+        })
+        .collect::<anyhow::Result<_>>()?;
+    let sizes: Vec<Decimal> = sizes_s
+        .iter()
+        .map(|s| Decimal::from_str(s).with_context(|| format!("invalid size '{s}' in --sizes")))
+        .collect::<anyhow::Result<_>>()?;
+
+    let signer = signer_from_args(args)?;
+    let mut signables: Vec<SignableOrder> = Vec::with_capacity(tokens.len());
+    let mut signed: Vec<SignedOrder> = Vec::with_capacity(tokens.len());
+    for ((token, price), size) in tokens.iter().zip(&prices).zip(&sizes) {
+        let create = CreateArgs {
+            token: token.clone(),
+            side: a.side,
+            price: Some(*price),
+            size: Some(*size),
+            amount: None,
+            market: false,
+            limit: true,
+            order_type: Some(a.order_type),
+            post_only: a.post_only,
+            expiration: a.expiration,
+            nonce: a.nonce,
+            fee_rate_bps: a.fee_rate_bps,
+            maker: a.maker.clone(),
+            taker: a.taker.clone(),
+            signature_type: a.signature_type,
+            owner: a.owner.clone(),
+            salt: None,
+            dry_run: false,
+        };
+        let (sg, so) = build_signed_order(&signer, &create)?;
+        signables.push(sg);
+        signed.push(so);
+    }
+
+    if a.dry_run {
+        let envelopes: Vec<SendOrderRequest> = signables
+            .into_iter()
+            .zip(signed)
+            .map(|(sg, so)| SendOrderRequest {
+                order: so,
+                owner: sg.owner,
+                order_type: sg.order_type,
+                post_only: sg.post_only,
+                defer_exec: false,
+            })
+            .collect();
+        output::print_json(&serde_json::to_value(&envelopes)?)?;
+        return Ok(());
+    }
+
+    let order_type: OrderType = a.order_type.into();
+    let post_only = a.post_only;
+    let owner = a.owner.clone().unwrap_or_default();
+    let resp = with_l2_credentials(args, move |c| async move {
+        c.post_orders(signed, order_type, post_only, owner).await
+    })
+    .await?;
+    output::print_json(&serde_json::to_value(
+        resp.iter()
+            .map(|r| {
+                json!({
+                    "success": r.success,
+                    "errorMsg": r.error_msg,
+                    "orderID": r.order_id,
+                    "status": r.status,
+                    "takingAmount": r.taking_amount,
+                    "makingAmount": r.making_amount,
+                    "tradeIDs": r.trade_ids,
+                    "transactionsHashes": r.transactions_hashes,
+                })
+            })
+            .collect::<Vec<_>>(),
+    )?)?;
+    let _ = fmt;
+    Ok(())
+}
+
+fn split_csv(s: &str) -> Vec<String> {
+    s.split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .collect()
 }
 
 async fn run_cancel(args: &Cli, a: &CancelArgs, fmt: Format) -> anyhow::Result<()> {
@@ -657,3 +905,45 @@ fn truncate(s: &str, n: usize) -> String {
         s.to_owned()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn split_csv_trims_and_drops_empty() {
+        assert_eq!(
+            split_csv(" a, b ,, c ,"),
+            vec!["a".to_string(), "b".to_string(), "c".to_string()]
+        );
+        assert!(split_csv(",").is_empty());
+        assert!(split_csv("").is_empty());
+    }
+
+    #[test]
+    fn market_args_to_create_args_forces_market_flag() {
+        let m = MarketArgs {
+            token: "1".into(),
+            side: SideArg::Buy,
+            amount: Some(Decimal::from_str("10").unwrap()),
+            size: None,
+            order_type: None,
+            price: Some(Decimal::from_str("0.5").unwrap()),
+            nonce: 0,
+            fee_rate_bps: 100,
+            maker: Some("0x0000000000000000000000000000000000000001".into()),
+            taker: None,
+            signature_type: SignatureTypeArg::GnosisSafe,
+            owner: None,
+            salt: None,
+            dry_run: true,
+        };
+        let c = m.to_create_args();
+        assert!(c.market);
+        assert!(!c.limit);
+        assert_eq!(c.token, "1");
+        assert!(c.dry_run);
+        assert_eq!(c.fee_rate_bps, 100);
+    }
+}
+
