@@ -27,6 +27,10 @@ tenant:
     relayer: https://relayer.hermestrade.xyz
 
 contracts:
+  # ERC-1155 ConditionalTokens contract used by IERC1155.isApprovedForAll lookups.
+  # On Monad chainup the same address serves as both Exchange and ConditionalTokens —
+  # confirmed by cryptorobsu 2026-05-19.
+  conditional_tokens: "0x017641abFa4264121237023f9Fe678BF00F60De8"
   fee_module: "0x383f0Bf1Ad2970A981eE5c96a892285035F59D35"
   safe_proxy_factory: "0xE401CdA9643788cb660DeB49Bd44a6401a1e6bE9"
   uma_ctf_adapter: "0x44006C64C5D2f66772a32Da9692d2F5101ebB101"

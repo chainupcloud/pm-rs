@@ -49,14 +49,33 @@ pub struct LastTradePriceResponse {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct OrderBookSummary {
-    #[serde(alias = "market", alias = "asset_id")]
+    /// The CLOB token id (uint256 decimal string).
     pub asset_id: String,
+    /// Condition id this token belongs to — chainup sends this as `market` alongside
+    /// `asset_id` in the same payload, so the two are distinct fields, not aliases.
+    #[serde(default)]
+    pub market: Option<String>,
     pub bids: Vec<OrderBookLevel>,
     pub asks: Vec<OrderBookLevel>,
-    #[serde(default, alias = "timestamp")]
+    #[serde(default)]
     pub timestamp: Option<String>,
-    #[serde(default, alias = "hash")]
+    #[serde(default)]
     pub hash: Option<String>,
+    /// Chainup-specific: server's last-trade-price echo (decimal string).
+    #[serde(default)]
+    pub last_trade_price: Option<String>,
+    /// Chainup-specific: per-market tick size returned inside `/book` (decimal string).
+    #[serde(default)]
+    pub tick_size: Option<String>,
+    /// Chainup-specific: neg-risk flag returned inside `/book`.
+    #[serde(default)]
+    pub neg_risk: Option<bool>,
+    /// Chainup-specific: minimum order size (decimal string).
+    #[serde(default)]
+    pub min_order_size: Option<String>,
+    /// Chainup-specific: maximum order size (decimal string). Empty string when uncapped.
+    #[serde(default)]
+    pub max_order_size: Option<String>,
 }
 
 #[serde_as]

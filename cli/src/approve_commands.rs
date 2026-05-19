@@ -79,17 +79,16 @@ async fn run_check(args: &Cli, a: &CheckArgs, fmt: Format) -> Result<()> {
     })?;
     let collateral_addr = parse_addr(collateral)
         .with_context(|| format!("invalid collateral address '{collateral}'"))?;
-    // Chainup uses the same CTF Exchange contract as the conditional-tokens registry holder
-    // for `isApprovedForAll` lookups; the Go server queries `IERC1155.isApprovedForAll`
-    // against the CTF Exchange's underlying token. For now we ask the caller's wallet which
-    // ERC-1155 contract to query via the CTF Exchange — adjust once chainup ships an
-    // explicit `conditional_tokens` field in the YAML.
-    let ctf_addr = parse_addr(&cfg.contracts.ctf_exchange).with_context(|| {
-        format!(
-            "invalid ctf_exchange address '{}'",
-            cfg.contracts.ctf_exchange
-        )
-    })?;
+    // Prefer the explicit `conditional_tokens` field when set; fall back to `ctf_exchange`
+    // for backward compatibility with older YAMLs (and chainup Monad where the two are the
+    // same contract).
+    let ctf_source = cfg
+        .contracts
+        .conditional_tokens
+        .as_deref()
+        .unwrap_or(cfg.contracts.ctf_exchange.as_str());
+    let ctf_addr = parse_addr(ctf_source)
+        .with_context(|| format!("invalid conditional_tokens / ctf_exchange address '{ctf_source}'"))?;
 
     let statuses = read_approvals(
         &rpc_url,

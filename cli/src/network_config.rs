@@ -57,6 +57,11 @@ pub struct TenantEndpoints {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct ContractsSection {
     pub ctf_exchange: String,
+    /// ERC-1155 ConditionalTokens contract for `isApprovedForAll(owner, operator)` lookups.
+    /// On chainup Monad this is the same address as `ctf_exchange`; on other deployments it
+    /// may differ.
+    #[serde(default)]
+    pub conditional_tokens: Option<String>,
     #[serde(default)]
     pub neg_risk_ctf_exchange: Option<String>,
     #[serde(default)]
@@ -207,6 +212,7 @@ mod tests {
         fn empty_for_test() -> Self {
             Self {
                 ctf_exchange: String::new(),
+                conditional_tokens: None,
                 neg_risk_ctf_exchange: None,
                 neg_risk_adapter: None,
                 fee_module: None,
