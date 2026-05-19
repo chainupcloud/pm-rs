@@ -51,8 +51,10 @@ fn market_event_round_trip_for_every_documented_variant() {
 
 #[test]
 fn user_event_round_trip_for_every_documented_variant() {
-    let order = r#"{"event_type":"order","type":"PLACEMENT","id":"0x","owner":"o","market":"0xcid","asset_id":"1","side":"BUY","original_size":"10","size_matched":"0","price":"0.5","outcome":"Yes","order_type":"GTC","status":"ORDER_STATUS_LIVE","maker_address":"0xs","expiration":0,"created_at":1,"associate_trades":null,"lazy":"false","timestamp":1}"#;
-    let trade = r#"{"event_type":"trade","type":"TRADE","id":"t","taker_order_id":"0x","market":"0xcid","asset_id":"1","side":"BUY","size":"1","price":"0.5","fee_rate_bps":"10","status":"TRADE_STATUS_MATCHED","outcome":"Yes","owner":"o","maker_address":"0xs","transaction_hash":"","bucket_index":0,"matchtime":1,"last_update":1,"trader_side":"TAKER","maker_orders":[],"timestamp":1}"#;
+    // Chainup nests the order/trade payload inside `data: {...}` and echoes `owner` /
+    // `condition_id` at the top level alongside `event_type`.
+    let order = r#"{"event_type":"order","data":{"type":"PLACEMENT","id":"0x","owner":"o","market":"0xcid","asset_id":"1","side":"BUY","original_size":"10","size_matched":"0","price":"0.5","outcome":"Yes","order_type":"GTC","status":"ORDER_STATUS_LIVE","maker_address":"0xs","expiration":0,"created_at":1,"associate_trades":null,"lazy":"false","timestamp":1}}"#;
+    let trade = r#"{"event_type":"trade","data":{"type":"TRADE","id":"t","taker_order_id":"0x","market":"0xcid","asset_id":"1","side":"BUY","size":"1","price":"0.5","fee_rate_bps":"10","status":"TRADE_STATUS_MATCHED","outcome":"Yes","owner":"o","maker_address":"0xs","transaction_hash":"","bucket_index":0,"matchtime":1,"last_update":1,"trader_side":"TAKER","maker_orders":[],"timestamp":1}}"#;
     round_trip_user(order);
     round_trip_user(trade);
 }

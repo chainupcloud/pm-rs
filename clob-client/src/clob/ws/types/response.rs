@@ -219,9 +219,11 @@ pub struct MarketResolvedEvent {
 
 // ─── user channel ───────────────────────────────────────────────────────────
 
-/// Top-level inbound enum for the `/ws/user` channel.
+/// Top-level inbound enum for the `/ws/user` channel. Like [`MarketEvent`], live chainup
+/// nests the per-event payload inside `data: {...}` (with `owner` and `condition_id`
+/// echoed at the top level alongside `event_type`).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "event_type", rename_all = "snake_case")]
+#[serde(tag = "event_type", content = "data", rename_all = "snake_case")]
 pub enum UserEvent {
     Order(OrderEvent),
     Trade(TradeEvent),
@@ -236,35 +238,38 @@ pub enum OrderSubType {
     Cancellation,
 }
 
-/// Order state transitions surfaced on `/ws/user`.
+/// Order state transitions. The REST `/orders` endpoint uses the long prefixed form
+/// (`ORDER_STATUS_LIVE`); the `/ws/user` channel uses the short lowercase form (`live`).
+/// Accept both via serde aliases.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OrderStatus {
-    #[serde(rename = "ORDER_STATUS_LIVE")]
+    #[serde(rename = "ORDER_STATUS_LIVE", alias = "live")]
     Live,
-    #[serde(rename = "ORDER_STATUS_MATCHED")]
+    #[serde(rename = "ORDER_STATUS_MATCHED", alias = "matched")]
     Matched,
-    #[serde(rename = "ORDER_STATUS_CANCELED")]
+    #[serde(rename = "ORDER_STATUS_CANCELED", alias = "canceled", alias = "cancelled")]
     Canceled,
-    #[serde(rename = "ORDER_STATUS_CANCELED_MARKET_RESOLVED")]
+    #[serde(rename = "ORDER_STATUS_CANCELED_MARKET_RESOLVED", alias = "canceled_market_resolved")]
     CanceledMarketResolved,
-    #[serde(rename = "ORDER_STATUS_SYSTEM_CLEARED")]
+    #[serde(rename = "ORDER_STATUS_SYSTEM_CLEARED", alias = "system_cleared")]
     SystemCleared,
-    #[serde(rename = "ORDER_STATUS_INVALID")]
+    #[serde(rename = "ORDER_STATUS_INVALID", alias = "invalid")]
     Invalid,
 }
 
-/// Trade-lifecycle status surfaced on `/ws/user`.
+/// Trade-lifecycle status. Same long-vs-short divergence as [`OrderStatus`]; aliases cover
+/// both forms.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TradeStatus {
-    #[serde(rename = "TRADE_STATUS_MATCHED")]
+    #[serde(rename = "TRADE_STATUS_MATCHED", alias = "matched")]
     Matched,
-    #[serde(rename = "TRADE_STATUS_MINED")]
+    #[serde(rename = "TRADE_STATUS_MINED", alias = "mined")]
     Mined,
-    #[serde(rename = "TRADE_STATUS_CONFIRMED")]
+    #[serde(rename = "TRADE_STATUS_CONFIRMED", alias = "confirmed")]
     Confirmed,
-    #[serde(rename = "TRADE_STATUS_RETRYING")]
+    #[serde(rename = "TRADE_STATUS_RETRYING", alias = "retrying")]
     Retrying,
-    #[serde(rename = "TRADE_STATUS_FAILED")]
+    #[serde(rename = "TRADE_STATUS_FAILED", alias = "failed")]
     Failed,
 }
 
@@ -276,23 +281,40 @@ pub enum TraderSide {
     Maker,
 }
 
-/// `order` event payload.
+/// `order` event payload, sent inside `data: {...}` on the user channel.
+///
+/// Live chainup uses an extremely lean envelope — only `id` and `status` are guaranteed.
+/// Placement events fill `asset_id` / `side` / `original_size` / `price` / `type`;
+/// cancellation events typically arrive with just `{id, status}`. Every field is
+/// defaulted / optional so both shapes decode cleanly.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OrderEvent {
-    #[serde(rename = "type")]
-    pub sub_type: OrderSubType,
     pub id: String,
-    pub owner: String,
-    pub market: String,
+    pub status: OrderStatus,
+    #[serde(default)]
     pub asset_id: String,
-    pub side: OrderSide,
-    pub original_size: String,
-    pub size_matched: String,
+    #[serde(default)]
+    pub side: Option<OrderSide>,
+    #[serde(default)]
     pub price: String,
     #[serde(default)]
-    pub outcome: String,
+    pub original_size: String,
+    /// Chainup wire field `type` carries the order type (`GTC`/`GTD`/`FOK`/`FAK`).
+    #[serde(default, rename = "type")]
     pub order_type: String,
-    pub status: OrderStatus,
+    /// MM-lazy persistence flag, serialized as the string `"true"` / `"false"`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lazy: Option<String>,
+    #[serde(default)]
+    pub size_matched: String,
+    /// Optional fields the asyncapi spec lists but chainup currently omits — kept defaulted
+    /// for forward-compat and so legacy fixture tests still decode.
+    #[serde(default)]
+    pub owner: String,
+    #[serde(default)]
+    pub market: String,
+    #[serde(default)]
+    pub outcome: String,
     #[serde(default)]
     pub maker_address: String,
     #[serde(default)]
@@ -301,11 +323,6 @@ pub struct OrderEvent {
     pub created_at: i64,
     #[serde(default)]
     pub associate_trades: Option<Vec<String>>,
-    /// MM-lazy persistence flag — serialized as the *string* `"true"` /
-    /// `"false"` per `pm-cup2026 docs/mm-lazy-order-integration-guide.md`.
-    /// Absent on legacy events; we preserve the string verbatim.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub lazy: Option<String>,
     #[serde(default)]
     pub timestamp: Timestamp,
 }
@@ -446,51 +463,45 @@ mod tests {
     }
 
     #[test]
-    fn order_event_decodes_with_optional_lazy() {
+    fn order_event_decodes_live_placement_shape() {
+        // The shape chainup actually sends on the `/ws/user` channel: lean payload, wire
+        // `type` carries the order type, status is lowercase.
         let raw = r#"{
             "event_type": "order",
-            "type": "PLACEMENT",
-            "id": "0xorderhash",
             "owner": "owner-uuid",
-            "market": "0xcid",
-            "asset_id": "1234",
-            "side": "BUY",
-            "original_size": "10",
-            "size_matched": "0",
-            "price": "0.5",
-            "outcome": "Yes",
-            "order_type": "GTC",
-            "status": "ORDER_STATUS_LIVE",
-            "maker_address": "0xsafe",
-            "expiration": 0,
-            "created_at": 1700000000,
-            "associate_trades": null,
-            "lazy": "true",
-            "timestamp": 1700000000
+            "condition_id": "0xcid",
+            "data": {
+                "id": "0xorderhash",
+                "asset_id": "1234",
+                "lazy": "false",
+                "original_size": "10",
+                "price": "0.5",
+                "side": "BUY",
+                "status": "live",
+                "type": "GTC"
+            }
         }"#;
         let ev: UserEvent = serde_json::from_str(raw).unwrap();
         let UserEvent::Order(o) = ev else { panic!("wrong variant") };
-        assert_eq!(o.sub_type, OrderSubType::Placement);
         assert_eq!(o.status, OrderStatus::Live);
-        assert_eq!(o.lazy.as_deref(), Some("true"));
+        assert_eq!(o.order_type, "GTC");
+        assert_eq!(o.lazy.as_deref(), Some("false"));
     }
 
     #[test]
-    fn order_event_decodes_without_lazy() {
+    fn order_event_decodes_cancellation_via_status() {
         let raw = r#"{
             "event_type": "order",
-            "type": "CANCELLATION",
-            "id": "0x",
-            "owner": "o",
-            "market": "0xcid",
-            "asset_id": "1234",
-            "side": "SELL",
-            "original_size": "10",
-            "size_matched": "5",
-            "price": "0.5",
-            "order_type": "GTC",
-            "status": "ORDER_STATUS_CANCELED",
-            "timestamp": 1700000000
+            "data": {
+                "id": "0x",
+                "asset_id": "1234",
+                "side": "SELL",
+                "original_size": "10",
+                "size_matched": "5",
+                "price": "0.5",
+                "type": "GTC",
+                "status": "canceled"
+            }
         }"#;
         let ev: UserEvent = serde_json::from_str(raw).unwrap();
         let UserEvent::Order(o) = ev else { panic!("wrong variant") };
@@ -502,38 +513,40 @@ mod tests {
     fn trade_event_decodes() {
         let raw = r#"{
             "event_type": "trade",
-            "type": "TRADE",
-            "id": "t-uuid",
-            "taker_order_id": "0xhash",
-            "market": "0xcid",
-            "asset_id": "1234",
-            "side": "BUY",
-            "size": "1",
-            "price": "0.5",
-            "fee_rate_bps": "10",
-            "status": "TRADE_STATUS_MATCHED",
-            "outcome": "Yes",
-            "owner": "o",
-            "maker_address": "0xsafe",
-            "transaction_hash": "",
-            "bucket_index": 0,
-            "matchtime": 1700000000,
-            "last_update": 1700000000,
-            "trader_side": "TAKER",
-            "maker_orders": [
-                {
-                    "order_id": "0xmaker",
-                    "owner": "om",
-                    "maker_address": "0xms",
-                    "matched_amount": "1",
-                    "price": "0.5",
-                    "fee_rate_bps": "10",
-                    "asset_id": "1234",
-                    "outcome": "Yes",
-                    "side": "SELL"
-                }
-            ],
-            "timestamp": 1700000000
+            "data": {
+                "type": "TRADE",
+                "id": "t-uuid",
+                "taker_order_id": "0xhash",
+                "market": "0xcid",
+                "asset_id": "1234",
+                "side": "BUY",
+                "size": "1",
+                "price": "0.5",
+                "fee_rate_bps": "10",
+                "status": "TRADE_STATUS_MATCHED",
+                "outcome": "Yes",
+                "owner": "o",
+                "maker_address": "0xsafe",
+                "transaction_hash": "",
+                "bucket_index": 0,
+                "matchtime": 1700000000,
+                "last_update": 1700000000,
+                "trader_side": "TAKER",
+                "maker_orders": [
+                    {
+                        "order_id": "0xmaker",
+                        "owner": "om",
+                        "maker_address": "0xms",
+                        "matched_amount": "1",
+                        "price": "0.5",
+                        "fee_rate_bps": "10",
+                        "asset_id": "1234",
+                        "outcome": "Yes",
+                        "side": "SELL"
+                    }
+                ],
+                "timestamp": 1700000000
+            }
         }"#;
         let ev: UserEvent = serde_json::from_str(raw).unwrap();
         let UserEvent::Trade(t) = ev else { panic!("wrong variant") };

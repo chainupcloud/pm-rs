@@ -220,8 +220,8 @@ pub(super) fn spawn_market_pump(
                     Err(e) => {
                         let _ = out_tx
                             .send(Err(WsError::Decode(format!(
-                                "{e}; raw frame (truncated 256B): {}",
-                                truncate(&text, 256)
+                                "{e}; raw frame (truncated 1024B): {}",
+                                truncate(&text, 1024)
                             ))))
                             .await;
                     }
@@ -276,8 +276,8 @@ pub(super) fn spawn_user_pump(
                         Err(e) => {
                             let _ = out_tx
                                 .send(Err(WsError::Decode(format!(
-                                    "{e}; raw frame (truncated 256B): {}",
-                                    truncate(&text, 256)
+                                    "{e}; raw frame (truncated 1024B): {}",
+                                    truncate(&text, 1024)
                                 ))))
                                 .await;
                         }

@@ -102,11 +102,14 @@ async fn subscribe_market_serializes_correct_envelope_and_decodes_book() {
     let book_frame = r#"{
         "event_type": "book",
         "asset_id": "asset-1",
-        "market": "0xmarket",
-        "bids": [{"price": "0.4", "size": "10"}],
-        "asks": [{"price": "0.6", "size": "20"}],
-        "timestamp": 1700000000,
-        "hash": "0xdead"
+        "data": {
+            "market": "0xmarket",
+            "asset_id": "asset-1",
+            "bids": [{"price": "0.4", "size": "10"}],
+            "asks": [{"price": "0.6", "size": "20"}],
+            "timestamp": 1700000000,
+            "hash": "0xdead"
+        }
     }"#
     .to_owned();
 
@@ -197,18 +200,18 @@ async fn market_runtime_subscribe_unsubscribe_round_trip() {
 async fn subscribe_user_carries_auth_in_first_frame() {
     let order_frame = r#"{
         "event_type": "order",
-        "type": "PLACEMENT",
-        "id": "0xorder",
         "owner": "owner",
-        "market": "0xcid",
-        "asset_id": "1",
-        "side": "BUY",
-        "original_size": "10",
-        "size_matched": "0",
-        "price": "0.5",
-        "order_type": "GTC",
-        "status": "ORDER_STATUS_LIVE",
-        "timestamp": 1700000000
+        "condition_id": "0xcid",
+        "data": {
+            "id": "0xorder",
+            "asset_id": "1",
+            "side": "BUY",
+            "original_size": "10",
+            "size_matched": "0",
+            "price": "0.5",
+            "type": "GTC",
+            "status": "live"
+        }
     }"#
     .to_owned();
     let (url, log) = spin_server(vec![order_frame]).await;
@@ -229,7 +232,7 @@ async fn subscribe_user_carries_auth_in_first_frame() {
         .unwrap();
     match ev {
         UserEvent::Order(o) => {
-            assert_eq!(o.side, OrderSide::Buy);
+            assert_eq!(o.side, Some(OrderSide::Buy));
         }
         UserEvent::Trade(_) => panic!("wrong variant"),
     }
