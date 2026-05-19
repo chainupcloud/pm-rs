@@ -112,7 +112,7 @@ Last updated: 2026-05-19 (end of Phase 1).
 | `rtds` (real-time data stream) | Polymarket proprietary |
 | `rfq` (request for quote) | Polymarket proprietary |
 | `ctf` (on-chain CTF split / merge / redeem) | Better handled by the tenant wallet or front-end, not the SDK |
-| `gamma` streaming | `pm-cup2026` `gamma-service` is REST-only; no stream |
+| `gamma` streaming | `pm-cup2026` `gamma-service` is REST-only; no stream. REST surface implemented in Phase 3a — see [`docs/gamma.md`](gamma.md). |
 
 ---
 
