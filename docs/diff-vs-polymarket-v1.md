@@ -2,7 +2,7 @@
 
 > **Scope:** `pm-rs` mirrors Polymarket V1 (`rs-clob-client` v0.4 + `polymarket-cli` v0.1.4) functionally. This document lists **only the differences**; anything not listed here is unchanged or carried over directly.
 
-Last updated: 2026-05-19 (end of Phase 1).
+Last updated: 2026-05-19 (Phase 2.1: L1/L2 auth + balance-allowance).
 
 ---
 
@@ -133,7 +133,7 @@ Last updated: 2026-05-19 (end of Phase 1).
 
 | Dimension | Polymarket V1 | pm-rs |
 |-----------|---------------|-------|
-| Client state machine | Type-state pattern (`Client<Unauthenticated>` → `Client<Authenticated<K>>`) | **Single `Client` struct + `Option<Credentials>`** (no Builder / Normal / AWS-KMS Kind tiers) |
+| Client state machine | Type-state pattern (`Client<Unauthenticated>` → `Client<Authenticated<K>>`) | **Single `Client` struct + `Option<Credentials>` + `Option<signer_address>`** — credentials and the L1 signer address are attached at build time via `ClientBuilder::credentials` / `signer_address` (no Builder / Normal / AWS-KMS Kind tiers) |
 | Builder authentication | `promote_to_builder(BuilderConfig)` + remote signer service | Not implemented (no user requirement yet) |
 | AWS KMS signer | Built-in `signer-aws` example | Not implemented (callers can plug in any `alloy::signers::Signer` impl) |
 | Heartbeat long connection | `heartbeats` feature flag | Phase 3 |
