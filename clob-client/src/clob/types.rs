@@ -48,7 +48,9 @@ pub struct TickSizeResponse {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct FeeRateResponse {
-    #[serde(alias = "feeRateBps", alias = "fee_rate_bps")]
+    /// Fee rate in basis points. Chainup returns this field as `base_fee`; Polymarket V1 uses
+    /// `fee_rate_bps` / `feeRateBps`.
+    #[serde(alias = "feeRateBps", alias = "fee_rate_bps", alias = "base_fee")]
     pub fee_rate_bps: u64,
 }
 
