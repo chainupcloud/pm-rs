@@ -2,6 +2,7 @@ mod cli;
 mod commands;
 mod gamma_commands;
 mod output;
+mod ws_commands;
 
 use clap::Parser;
 

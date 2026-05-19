@@ -89,6 +89,64 @@ pub enum Command {
     Auth(AuthCommand),
     /// `GET /balance-allowance` (or `/balance-allowance/update` with `--update`).
     Balance(BalanceArgs),
+    /// WebSocket subscriptions (`/ws/market` public; `/ws/user` auth-required).
+    Ws(WsArgs),
+}
+
+#[derive(Debug, clap::Args)]
+pub struct WsArgs {
+    #[command(subcommand)]
+    pub command: WsCmd,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum WsCmd {
+    /// Connect, send one PING, verify the server accepts the upgrade, disconnect.
+    Ping,
+    /// Subscribe to `/ws/market` and print N book frames (then exit).
+    Book(WsBookArgs),
+    /// Subscribe to `/ws/market` and stream updates until Ctrl-C.
+    BookWatch(WsBookWatchArgs),
+    /// Subscribe to `/ws/user` (auth-required) and stream order / trade updates.
+    User(WsUserArgs),
+}
+
+#[derive(Debug, clap::Args)]
+pub struct WsBookArgs {
+    /// Asset (token) IDs to subscribe to. One or more.
+    #[arg(required = true, num_args = 1..)]
+    pub asset_ids: Vec<String>,
+    /// Disable the initial book snapshot dump.
+    #[arg(long)]
+    pub no_initial_dump: bool,
+    /// Order-book depth (1 / 2 / 3). Default = server default (2).
+    #[arg(long, value_parser = clap::value_parser!(u8).range(1..=3))]
+    pub level: Option<u8>,
+    /// Enable the optional `best_bid_ask` / `new_market` / `market_resolved` events.
+    #[arg(long)]
+    pub custom_features: bool,
+    /// Stop after this many events arrive.
+    #[arg(long, default_value_t = 1)]
+    pub count: u32,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct WsBookWatchArgs {
+    /// Asset (token) ID to watch.
+    pub asset_id: String,
+    /// `--print-as-json` prints raw event JSON per line.
+    #[arg(long, group = "watch_fmt")]
+    pub print_as_json: bool,
+    /// `--print-as-table` (default) prints a compact `BID / ASK` ticker.
+    #[arg(long, group = "watch_fmt")]
+    pub print_as_table: bool,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct WsUserArgs {
+    /// Optional condition IDs (markets) to filter by. Empty = all owned markets.
+    #[arg(long = "market")]
+    pub markets: Vec<String>,
 }
 
 #[derive(Debug, Subcommand)]

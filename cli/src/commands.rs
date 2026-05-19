@@ -39,6 +39,16 @@ pub async fn run(args: Cli) -> anyhow::Result<()> {
         };
         return crate::gamma_commands::run(client, fmt, gargs).await;
     }
+    if matches!(args.command, Command::Ws(_)) {
+        // `ws_commands::run` consumes `WsArgs`; reconstruct an args struct that holds the
+        // rest for the helpers in `ws_commands` that re-resolve endpoints.
+        let mut owned = args;
+        let wargs = match std::mem::replace(&mut owned.command, Command::Ok) {
+            Command::Ws(w) => w,
+            _ => unreachable!(),
+        };
+        return crate::ws_commands::run(owned, fmt, wargs).await;
+    }
 
     match &args.command {
         Command::Endpoints => {
@@ -89,6 +99,7 @@ pub async fn run(args: Cli) -> anyhow::Result<()> {
             output::print_scalar("last_trade_price", resp.price, fmt)?;
         }
         Command::Gamma(_) => unreachable!("handled by early-return above"),
+        Command::Ws(_) => unreachable!("handled by early-return above"),
         Command::Auth(sub) => run_auth(&args, sub, fmt).await?,
         Command::Balance(a) => run_balance(&args, a, fmt).await?,
     }
@@ -331,6 +342,12 @@ fn print_balance(resp: &BalanceAllowanceResponse, fmt: Format) -> anyhow::Result
         }
     }
     Ok(())
+}
+
+/// Public alias used by sibling modules (e.g. `ws_commands`) so endpoint
+/// resolution stays single-sourced here.
+pub fn resolve_endpoints_pub(args: &Cli) -> anyhow::Result<Endpoints> {
+    resolve_endpoints(args)
 }
 
 fn resolve_endpoints(args: &Cli) -> anyhow::Result<Endpoints> {
