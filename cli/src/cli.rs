@@ -120,6 +120,9 @@ pub enum Command {
     /// Local wallet / config-file management (create / import / address / show / reset).
     #[command(subcommand)]
     Wallet(crate::wallet_commands::WalletCommand),
+    /// On-chain approval lookup (read-only). Mirrors `polymarket approve check`.
+    #[command(subcommand)]
+    Approve(crate::approve_commands::ApproveCommand),
 }
 
 #[derive(Debug, clap::Args)]

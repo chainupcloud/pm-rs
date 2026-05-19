@@ -1,7 +1,9 @@
+mod approve_commands;
 mod cli;
 mod commands;
 mod config_store;
 mod gamma_commands;
+mod network_config;
 mod order_commands;
 mod output;
 mod wallet_commands;

@@ -15,7 +15,9 @@ repository = "https://github.com/chainupcloud/pm-rs"
 [workspace.dependencies]
 # crypto / chain
 alloy = { version = "1.6.3", default-features = false, features = [
+    "contract",
     "dyn-abi",
+    "providers",
     "reqwest",
     "reqwest-rustls-tls",
     "serde",
@@ -66,6 +68,7 @@ dirs = "6"
 rustyline = "15"
 toml = "0.8"
 tempfile = "3"
+serde_yaml = "0.9"
 
 [profile.release]
 lto = "thin"

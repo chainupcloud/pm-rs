@@ -28,6 +28,17 @@ pub async fn run(args: Cli) -> anyhow::Result<()> {
         return crate::wallet_commands::run(&owned, &sub, fmt).await;
     }
 
+    // `pm approve …` only touches the on-chain RPC — no CLOB endpoint required.
+    if matches!(args.command, Command::Approve(_)) {
+        let mut owned = args;
+        let fmt = owned.output;
+        let sub = match std::mem::replace(&mut owned.command, Command::Ok) {
+            Command::Approve(a) => a,
+            _ => unreachable!(),
+        };
+        return crate::approve_commands::run(&owned, &sub, fmt).await;
+    }
+
     let endpoints = resolve_endpoints(&args)?;
     let mut builder = Client::builder().endpoints(endpoints);
     if let Some(cid) = effective_chain_id(&args)? {
@@ -175,6 +186,7 @@ pub async fn run(args: Cli) -> anyhow::Result<()> {
         Command::Trade(a) => crate::order_commands::run_trade(&args, a, fmt).await?,
         Command::Heartbeat => crate::order_commands::run_heartbeat(&args, fmt).await?,
         Command::Wallet(_) => unreachable!("handled by early-return above"),
+        Command::Approve(_) => unreachable!("handled by early-return above"),
     }
     Ok(())
 }
