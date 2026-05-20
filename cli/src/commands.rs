@@ -28,6 +28,12 @@ pub async fn run(args: Cli) -> anyhow::Result<()> {
         return crate::wallet_commands::run(&owned, &sub, fmt).await;
     }
 
+    // `pm shell` is purely local — no endpoint required. Dispatch before endpoint
+    // resolution so users can launch the REPL without any `--tenant` flag.
+    if matches!(args.command, Command::Shell) {
+        return crate::shell_commands::run().await;
+    }
+
     // `pm approve …` only touches the on-chain RPC — no CLOB endpoint required.
     if matches!(args.command, Command::Approve(_)) {
         let mut owned = args;
@@ -187,6 +193,7 @@ pub async fn run(args: Cli) -> anyhow::Result<()> {
         Command::Heartbeat => crate::order_commands::run_heartbeat(&args, fmt).await?,
         Command::Wallet(_) => unreachable!("handled by early-return above"),
         Command::Approve(_) => unreachable!("handled by early-return above"),
+        Command::Shell => unreachable!("handled by early-return above"),
     }
     Ok(())
 }

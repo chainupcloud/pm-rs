@@ -6,6 +6,7 @@ mod gamma_commands;
 mod network_config;
 mod order_commands;
 mod output;
+mod shell_commands;
 mod wallet_commands;
 mod ws_commands;
 

@@ -130,6 +130,9 @@ pub enum Command {
     /// On-chain approval lookup (read-only). Mirrors `polymarket approve check`.
     #[command(subcommand)]
     Approve(crate::approve_commands::ApproveCommand),
+    /// Interactive REPL. Mirrors `polymarket shell` — each line parses as a fresh
+    /// `pm <args>` invocation; env vars / config-file state apply per line.
+    Shell,
 }
 
 #[derive(Debug, clap::Args)]
