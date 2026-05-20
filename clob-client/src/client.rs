@@ -116,6 +116,12 @@ impl Client {
         self.inner.endpoints.ws.as_ref()
     }
 
+    /// Data-service base URL (`data-api.<tenant>`). `None` when not configured.
+    #[must_use]
+    pub fn data_url(&self) -> Option<&Url> {
+        self.inner.endpoints.data.as_ref()
+    }
+
     /// Configured chain id (None if the caller did not set one — Phase 1 read-only flows don't need it).
     #[must_use]
     pub fn chain_id(&self) -> Option<u64> {
@@ -134,6 +140,23 @@ impl Client {
             )
         })?;
         Ok(crate::gamma::GammaClient::new(
+            self.inner.http.clone(),
+            base.clone(),
+        ))
+    }
+
+    /// Construct a [`crate::data::DataClient`] sharing this client's HTTP pool.
+    ///
+    /// Errors with [`Error::Validation`] if no data-service endpoint was configured.
+    /// Build the client via `--tenant` (auto-derives `data-api.<tenant>`) or set the URL
+    /// explicitly through `Endpoints::with_data`.
+    pub fn data(&self) -> Result<crate::data::DataClient> {
+        let base = self.data_url().ok_or_else(|| {
+            Error::validation(
+                "data-service endpoint not configured: pass --data-endpoint or use --tenant",
+            )
+        })?;
+        Ok(crate::data::DataClient::new(
             self.inner.http.clone(),
             base.clone(),
         ))

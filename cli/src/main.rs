@@ -2,6 +2,7 @@ mod approve_commands;
 mod cli;
 mod commands;
 mod config_store;
+mod data_commands;
 mod gamma_commands;
 mod network_config;
 mod order_commands;

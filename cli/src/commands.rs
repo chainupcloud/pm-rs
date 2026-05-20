@@ -74,6 +74,16 @@ pub async fn run(args: Cli) -> anyhow::Result<()> {
         };
         return crate::gamma_commands::run(client, fmt, gargs).await;
     }
+    if matches!(args.command, Command::Data(_)) {
+        let Cli {
+            command: Command::Data(dargs),
+            ..
+        } = args
+        else {
+            unreachable!("matches! guarded above")
+        };
+        return crate::data_commands::run(client, fmt, dargs).await;
+    }
     if matches!(args.command, Command::Ws(_)) {
         // `ws_commands::run` consumes `WsArgs`; reconstruct an args struct that holds the
         // rest for the helpers in `ws_commands` that re-resolve endpoints.
@@ -191,6 +201,7 @@ pub async fn run(args: Cli) -> anyhow::Result<()> {
             )?)?;
         }
         Command::Gamma(_) => unreachable!("handled by early-return above"),
+        Command::Data(_) => unreachable!("handled by early-return above"),
         Command::Ws(_) => unreachable!("handled by early-return above"),
         Command::Auth(sub) => run_auth(&args, sub, fmt).await?,
         Command::Balance(a) => run_balance(&args, a, fmt).await?,

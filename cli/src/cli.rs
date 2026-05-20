@@ -110,6 +110,8 @@ pub enum Command {
     Endpoints,
     /// Gamma metadata API (events / markets / tags / series / comments / profiles / search).
     Gamma(crate::gamma_commands::GammaArgs),
+    /// Data API (portfolio / trades / activity / leaderboards) — wraps chainup `data-service`.
+    Data(crate::data_commands::DataArgs),
     /// L1 / L2 authentication: API-key management.
     #[command(subcommand)]
     Auth(AuthCommand),

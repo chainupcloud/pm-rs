@@ -14,6 +14,7 @@
 pub mod auth;
 pub mod client;
 pub mod clob;
+pub mod data;
 pub mod endpoints;
 pub mod error;
 pub mod gamma;
@@ -31,6 +32,7 @@ pub use clob::types::{
     SendOrderRequest, SignableOrder, SignedOrder, TradeResponse, TradesRequest,
 };
 pub use clob::ws::{ClobWebSocketClient, MarketStream, MarketSubscribeOpts, UserStream};
+pub use data::DataClient;
 pub use endpoints::Endpoints;
 pub use error::{Error, Result};
 pub use gamma::GammaClient;
