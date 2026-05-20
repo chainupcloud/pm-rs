@@ -240,36 +240,51 @@ pub enum OrderSubType {
 
 /// Order state transitions. The REST `/orders` endpoint uses the long prefixed form
 /// (`ORDER_STATUS_LIVE`); the `/ws/user` channel uses the short lowercase form (`live`).
-/// Accept both via serde aliases.
+/// Some live frames switch to short UPPERCASE (`LIVE`). Accept all three via serde aliases.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OrderStatus {
-    #[serde(rename = "ORDER_STATUS_LIVE", alias = "live")]
+    #[serde(rename = "ORDER_STATUS_LIVE", alias = "live", alias = "LIVE")]
     Live,
-    #[serde(rename = "ORDER_STATUS_MATCHED", alias = "matched")]
+    #[serde(rename = "ORDER_STATUS_MATCHED", alias = "matched", alias = "MATCHED")]
     Matched,
-    #[serde(rename = "ORDER_STATUS_CANCELED", alias = "canceled", alias = "cancelled")]
+    #[serde(
+        rename = "ORDER_STATUS_CANCELED",
+        alias = "canceled",
+        alias = "cancelled",
+        alias = "CANCELED",
+        alias = "CANCELLED"
+    )]
     Canceled,
-    #[serde(rename = "ORDER_STATUS_CANCELED_MARKET_RESOLVED", alias = "canceled_market_resolved")]
+    #[serde(
+        rename = "ORDER_STATUS_CANCELED_MARKET_RESOLVED",
+        alias = "canceled_market_resolved",
+        alias = "CANCELED_MARKET_RESOLVED"
+    )]
     CanceledMarketResolved,
-    #[serde(rename = "ORDER_STATUS_SYSTEM_CLEARED", alias = "system_cleared")]
+    #[serde(
+        rename = "ORDER_STATUS_SYSTEM_CLEARED",
+        alias = "system_cleared",
+        alias = "SYSTEM_CLEARED"
+    )]
     SystemCleared,
-    #[serde(rename = "ORDER_STATUS_INVALID", alias = "invalid")]
+    #[serde(rename = "ORDER_STATUS_INVALID", alias = "invalid", alias = "INVALID")]
     Invalid,
 }
 
-/// Trade-lifecycle status. Same long-vs-short divergence as [`OrderStatus`]; aliases cover
-/// both forms.
+/// Trade-lifecycle status. The REST `/trades` endpoint uses the long prefixed form
+/// (`TRADE_STATUS_MATCHED`); the `/ws/user` channel uses the short UPPERCASE form
+/// (`MATCHED`). Accept lowercase too, in case the server normalizes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TradeStatus {
-    #[serde(rename = "TRADE_STATUS_MATCHED", alias = "matched")]
+    #[serde(rename = "TRADE_STATUS_MATCHED", alias = "matched", alias = "MATCHED")]
     Matched,
-    #[serde(rename = "TRADE_STATUS_MINED", alias = "mined")]
+    #[serde(rename = "TRADE_STATUS_MINED", alias = "mined", alias = "MINED")]
     Mined,
-    #[serde(rename = "TRADE_STATUS_CONFIRMED", alias = "confirmed")]
+    #[serde(rename = "TRADE_STATUS_CONFIRMED", alias = "confirmed", alias = "CONFIRMED")]
     Confirmed,
-    #[serde(rename = "TRADE_STATUS_RETRYING", alias = "retrying")]
+    #[serde(rename = "TRADE_STATUS_RETRYING", alias = "retrying", alias = "RETRYING")]
     Retrying,
-    #[serde(rename = "TRADE_STATUS_FAILED", alias = "failed")]
+    #[serde(rename = "TRADE_STATUS_FAILED", alias = "failed", alias = "FAILED")]
     Failed,
 }
 
@@ -327,22 +342,41 @@ pub struct OrderEvent {
     pub timestamp: Timestamp,
 }
 
-/// `trade` event payload.
+/// `trade` event payload, sent inside `data: {...}` on the user channel.
+///
+/// Like [`OrderEvent`], live chainup emits a lean envelope. The fields guaranteed by
+/// observation are `id`, `asset_id`, `side`, `size`, `price`, and `status`. The asyncapi
+/// spec lists many more (maker_orders, trader_side, transaction_hash, …) which chainup
+/// either omits or fills only on later lifecycle frames (mined / confirmed). Every
+/// optional field has a serde default so both shapes decode cleanly.
+///
+/// Chainup adds two fields not in the spec: `match_type` (`MATCH` / `MINT` / `MERGE` for
+/// negRisk minting) and `order_id` (the order this trade settled into — a synonym for
+/// `taker_order_id` accepted via alias).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TradeEvent {
+    pub id: String,
+    pub status: TradeStatus,
     #[serde(rename = "type", default = "default_trade_type")]
     pub sub_type: String,
-    pub id: String,
-    #[serde(default)]
+    #[serde(default, alias = "order_id")]
     pub taker_order_id: String,
+    #[serde(default)]
     pub market: String,
+    #[serde(default)]
     pub asset_id: String,
-    pub side: OrderSide,
+    #[serde(default)]
+    pub side: Option<OrderSide>,
+    #[serde(default)]
     pub size: String,
+    #[serde(default)]
     pub price: String,
     #[serde(default)]
     pub fee_rate_bps: String,
-    pub status: TradeStatus,
+    /// Settlement type. `MATCH` = bilateral fill, `MINT` = mint complementary token
+    /// (negRisk maker side), `MERGE` = burn complementary pair. Empty when chainup omits.
+    #[serde(default)]
+    pub match_type: String,
     #[serde(default)]
     pub outcome: String,
     #[serde(default)]
@@ -357,7 +391,8 @@ pub struct TradeEvent {
     pub matchtime: i64,
     #[serde(default)]
     pub last_update: i64,
-    pub trader_side: TraderSide,
+    #[serde(default)]
+    pub trader_side: Option<TraderSide>,
     #[serde(default)]
     pub maker_orders: Vec<MakerOrderFill>,
     #[serde(default)]
@@ -551,7 +586,7 @@ mod tests {
         let ev: UserEvent = serde_json::from_str(raw).unwrap();
         let UserEvent::Trade(t) = ev else { panic!("wrong variant") };
         assert_eq!(t.status, TradeStatus::Matched);
-        assert_eq!(t.trader_side, TraderSide::Taker);
+        assert_eq!(t.trader_side, Some(TraderSide::Taker));
         assert_eq!(t.maker_orders.len(), 1);
         assert_eq!(t.maker_orders[0].side, OrderSide::Sell);
     }
