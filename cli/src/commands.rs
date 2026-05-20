@@ -40,6 +40,17 @@ pub async fn run(args: Cli) -> anyhow::Result<()> {
         return crate::setup_commands::run(&args).await;
     }
 
+    // `pm ctf` (current subcommands) are pure off-chain — no endpoint needed.
+    if matches!(args.command, Command::Ctf(_)) {
+        let mut owned = args;
+        let fmt = owned.output;
+        let cargs = match std::mem::replace(&mut owned.command, Command::Ok) {
+            Command::Ctf(c) => c,
+            _ => unreachable!(),
+        };
+        return crate::ctf_commands::run(cargs, fmt);
+    }
+
     // `pm approve …` only touches the on-chain RPC — no CLOB endpoint required.
     if matches!(args.command, Command::Approve(_)) {
         let mut owned = args;
@@ -212,6 +223,7 @@ pub async fn run(args: Cli) -> anyhow::Result<()> {
         Command::Approve(_) => unreachable!("handled by early-return above"),
         Command::Shell => unreachable!("handled by early-return above"),
         Command::Setup => unreachable!("handled by early-return above"),
+        Command::Ctf(_) => unreachable!("handled by early-return above"),
     }
     Ok(())
 }
