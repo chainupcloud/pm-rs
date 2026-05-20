@@ -133,6 +133,9 @@ pub enum Command {
     /// Interactive REPL. Mirrors `polymarket shell` — each line parses as a fresh
     /// `pm <args>` invocation; env vars / config-file state apply per line.
     Shell,
+    /// Guided first-time setup wizard (wallet + tenant + Safe + L2 API key).
+    /// Mirrors `polymarket setup`, adapted for chainup's multi-tenant topology.
+    Setup,
 }
 
 #[derive(Debug, clap::Args)]

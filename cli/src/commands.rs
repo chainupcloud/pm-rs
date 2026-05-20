@@ -34,6 +34,12 @@ pub async fn run(args: Cli) -> anyhow::Result<()> {
         return crate::shell_commands::run().await;
     }
 
+    // `pm setup` runs its own interactive flow; some sub-steps build a Client of their
+    // own. Dispatch before endpoint resolution so a fresh install can run `pm setup`.
+    if matches!(args.command, Command::Setup) {
+        return crate::setup_commands::run(&args).await;
+    }
+
     // `pm approve …` only touches the on-chain RPC — no CLOB endpoint required.
     if matches!(args.command, Command::Approve(_)) {
         let mut owned = args;
@@ -194,6 +200,7 @@ pub async fn run(args: Cli) -> anyhow::Result<()> {
         Command::Wallet(_) => unreachable!("handled by early-return above"),
         Command::Approve(_) => unreachable!("handled by early-return above"),
         Command::Shell => unreachable!("handled by early-return above"),
+        Command::Setup => unreachable!("handled by early-return above"),
     }
     Ok(())
 }
