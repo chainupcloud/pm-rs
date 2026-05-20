@@ -27,6 +27,9 @@ pub struct Endpoints {
     /// leaderboards). Optional because Phase 1 read-only flows don't need it; the
     /// data sub-client will surface a validation error if it's missing.
     pub data: Option<Url>,
+    /// `relayer-api.<tenant>` — chainup relayer-service (Safe meta-tx submission).
+    /// Optional; required when calling [`crate::relayer::RelayerClient`].
+    pub relayer: Option<Url>,
 }
 
 impl Endpoints {
@@ -43,6 +46,7 @@ impl Endpoints {
             gamma: Some(parse(gamma.as_ref())?),
             ws: Some(parse(ws.as_ref())?),
             data: None,
+            relayer: None,
         })
     }
 
@@ -70,6 +74,7 @@ impl Endpoints {
             format!("wss://clob-ws.{bare}"),
         )?;
         ep.data = Some(parse(&format!("https://data-api.{bare}"))?);
+        ep.relayer = Some(parse(&format!("https://relayer-api.{bare}"))?);
         Ok(ep)
     }
 
@@ -80,6 +85,7 @@ impl Endpoints {
             gamma: None,
             ws: None,
             data: None,
+            relayer: None,
         })
     }
 
@@ -110,6 +116,14 @@ impl Endpoints {
         self.data = Some(data);
         self
     }
+
+    /// Attach a relayer-service URL (`relayer-api.<tenant>`). Required to use
+    /// [`crate::relayer::RelayerClient`].
+    #[must_use]
+    pub fn with_relayer(mut self, relayer: Url) -> Self {
+        self.relayer = Some(relayer);
+        self
+    }
 }
 
 fn parse(s: &str) -> Result<Url> {
@@ -132,6 +146,7 @@ mod tests {
         assert_eq!(ep.gamma.as_ref().unwrap().as_str(), "https://gamma-api.hermestrade.xyz/");
         assert_eq!(ep.ws.as_ref().unwrap().as_str(), "wss://clob-ws.hermestrade.xyz/");
         assert_eq!(ep.data.as_ref().unwrap().as_str(), "https://data-api.hermestrade.xyz/");
+        assert_eq!(ep.relayer.as_ref().unwrap().as_str(), "https://relayer-api.hermestrade.xyz/");
     }
 
     #[test]

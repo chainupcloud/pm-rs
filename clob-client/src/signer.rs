@@ -91,6 +91,68 @@ sol! {
     }
 }
 
+sol! {
+    /// EIP-712 struct for chainup gamma-service `/auth/login`. Matches the on-server type
+    /// hash at `services/gamma-service/internal/auth/eip712.go:28` and the front-end
+    /// signTypedData call at `apps/user-dapp/src/hooks/useSetupSteps.ts:67`.
+    #[derive(Debug)]
+    struct LoginMessage {
+        address wallet;
+        string  nonce;
+        uint256 scopeId;
+        string  issuedAt;
+        string  domain;
+        string  uri;
+        uint256 chainId;
+    }
+}
+
+/// gamma-service application name used in the LoginMessage EIP-712 domain. Hardcoded by
+/// `services/gamma-service/internal/auth/eip712.go` and confirmed at
+/// `apps/user-dapp/src/hooks/useSetupSteps.ts:188`.
+pub const GAMMA_LOGIN_DOMAIN_NAME: &str = "PredictMarket";
+
+/// EIP-712 domain for gamma-service `LoginMessage` — short form with `name`, `version`,
+/// `chainId` (no `verifyingContract`).
+fn login_message_domain(chain_id: u64) -> Eip712Domain {
+    Eip712Domain {
+        name: Some(Cow::Borrowed(GAMMA_LOGIN_DOMAIN_NAME)),
+        version: Some(Cow::Borrowed(DOMAIN_VERSION)),
+        chain_id: Some(U256::from(chain_id)),
+        verifying_contract: None,
+        salt: None,
+    }
+}
+
+/// Plain-data wrapper for the LoginMessage parameters. Constructors massaging the
+/// `scopeId` hex string to a `U256` are below.
+#[derive(Debug, Clone)]
+pub struct LoginMessageParams {
+    pub wallet: Address,
+    pub nonce: String,
+    pub scope_id: ScopeId,
+    pub issued_at: String,
+    pub domain: String,
+    pub uri: String,
+    pub chain_id: u64,
+}
+
+/// Compute the 32-byte LoginMessage EIP-712 digest.
+#[must_use]
+pub fn login_message_digest(params: &LoginMessageParams) -> B256 {
+    let domain = login_message_domain(params.chain_id);
+    let msg = LoginMessage {
+        wallet: params.wallet,
+        nonce: params.nonce.clone(),
+        scopeId: U256::from_be_bytes(params.scope_id.0),
+        issuedAt: params.issued_at.clone(),
+        domain: params.domain.clone(),
+        uri: params.uri.clone(),
+        chainId: U256::from(params.chain_id),
+    };
+    msg.eip712_signing_hash(&domain)
+}
+
 /// EIP-712 domain for a Safe meta-tx — no `name`, no `version`, just `chainId` +
 /// `verifyingContract` (the Safe address). This is the Safe v1.3 convention.
 fn safe_tx_domain(chain_id: u64, safe: Address) -> Eip712Domain {
@@ -357,6 +419,17 @@ impl PMCup26Signer {
         let sig = self.sign_digest(digest)?;
         Ok(signature_to_bytes_ethereum_v(sig))
     }
+
+    /// Sign a gamma-service login message. Returns a 65-byte signature with `v` in
+    /// `{0x1b, 0x1c}` — matches what the server's `RecoverAddress` (in
+    /// `services/gamma-service/internal/auth/eip712.go`) expects. Caller fills in the
+    /// `LoginMessageParams.wallet` field; this method does not verify that the wallet
+    /// matches the signer's own EOA (test mode may want them different).
+    pub fn sign_login_message(&self, params: &LoginMessageParams) -> Result<[u8; 65]> {
+        let digest = login_message_digest(params);
+        let sig = self.sign_digest(digest)?;
+        Ok(signature_to_bytes_ethereum_v(sig))
+    }
 }
 
 /// Serialize a 65-byte signature in `r || s || v` order, where `v` is the recovery id
@@ -452,6 +525,45 @@ mod tests {
             nonce: U256::ZERO,
         };
         assert_eq!(zero.eip712_type_hash(), want);
+    }
+
+    #[test]
+    fn login_message_type_hash_matches_literal() {
+        // Must match the on-server hash in
+        // `services/gamma-service/internal/auth/eip712.go::messageTypeStr`.
+        let want = keccak256(
+            "LoginMessage(address wallet,string nonce,uint256 scopeId,string issuedAt,string domain,string uri,uint256 chainId)",
+        );
+        let zero = LoginMessage {
+            wallet: Address::ZERO,
+            nonce: String::new(),
+            scopeId: U256::ZERO,
+            issuedAt: String::new(),
+            domain: String::new(),
+            uri: String::new(),
+            chainId: U256::ZERO,
+        };
+        assert_eq!(zero.eip712_type_hash(), want);
+    }
+
+    #[test]
+    fn sign_login_message_produces_ethereum_v_byte() {
+        let signer = PMCup26Signer::from_hex(
+            "0x4242424242424242424242424242424242424242424242424242424242424242",
+            143,
+        )
+        .unwrap();
+        let params = LoginMessageParams {
+            wallet: signer.address(),
+            nonce: "nonce-xyz".into(),
+            scope_id: ScopeId::ZERO,
+            issued_at: "2026-05-20T04:00:00Z".into(),
+            domain: "hermestrade.xyz".into(),
+            uri: "https://hermestrade.xyz".into(),
+            chain_id: 143,
+        };
+        let sig = signer.sign_login_message(&params).unwrap();
+        assert!(sig[64] == 27 || sig[64] == 28);
     }
 
     #[test]

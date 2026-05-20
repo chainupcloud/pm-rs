@@ -122,6 +122,12 @@ impl Client {
         self.inner.endpoints.data.as_ref()
     }
 
+    /// Relayer-service base URL (`relayer-api.<tenant>`). `None` when not configured.
+    #[must_use]
+    pub fn relayer_url(&self) -> Option<&Url> {
+        self.inner.endpoints.relayer.as_ref()
+    }
+
     /// Configured chain id (None if the caller did not set one — Phase 1 read-only flows don't need it).
     #[must_use]
     pub fn chain_id(&self) -> Option<u64> {
@@ -160,6 +166,129 @@ impl Client {
             self.inner.http.clone(),
             base.clone(),
         ))
+    }
+
+    /// Construct a [`crate::relayer::RelayerClient`] sharing this client's HTTP pool.
+    /// The returned client carries no auth credentials yet; attach one via
+    /// [`crate::relayer::RelayerClient::with_token`] (JWT, recommended; obtain via
+    /// [`Self::jwt_login`]) or [`crate::relayer::RelayerClient::with_api_key`].
+    pub fn relayer(&self) -> Result<crate::relayer::RelayerClient> {
+        let base = self.relayer_url().ok_or_else(|| {
+            Error::validation(
+                "relayer-service endpoint not configured: pass --relayer-endpoint or use --tenant",
+            )
+        })?;
+        Ok(crate::relayer::RelayerClient::new(
+            self.inner.http.clone(),
+            base.clone(),
+        ))
+    }
+
+    /// `GET gamma /auth/nonce` → sign EIP-712 LoginMessage with the supplied signer →
+    /// `POST gamma /auth/login` → return the issued RS256 JWT. Use with
+    /// [`crate::relayer::RelayerClient::with_token`] to authorise relayer calls.
+    ///
+    /// `domain` and `uri` are written into the EIP-712 message and recorded in the JWT;
+    /// they're not validated server-side beyond presence. Hand the tenant root host for
+    /// both (e.g. `("hermestrade.xyz", "https://hermestrade.xyz")`) to keep the audit log
+    /// readable. Returns the bare token string (no `Bearer ` prefix).
+    pub async fn jwt_login(
+        &self,
+        signer: &crate::PMCup26Signer,
+        domain: impl Into<String>,
+        uri: impl Into<String>,
+    ) -> Result<String> {
+        use crate::signer::LoginMessageParams;
+
+        let gamma = self.gamma()?;
+        let address_lower = format!("{:#x}", signer.address());
+
+        // Step 1: fetch nonce.
+        let nonce_url = gamma
+            .base()
+            .join("auth/nonce")
+            .map_err(|e| Error::validation(format!("build /auth/nonce url: {e}")))?;
+        let mut nonce_url = nonce_url;
+        nonce_url.set_query(Some(&format!("address={address_lower}")));
+        let nonce_resp = self.inner.http.get(nonce_url.clone()).send().await?;
+        let status = nonce_resp.status();
+        let nonce_bytes = nonce_resp.bytes().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(Error::api(
+                status,
+                "GET",
+                "/auth/nonce",
+                String::from_utf8_lossy(&nonce_bytes).into_owned(),
+            ));
+        }
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct NonceResp {
+            nonce: String,
+            scope_id: String,
+            issued_at: String,
+            chain_id: i64,
+        }
+        let n: NonceResp = serde_json::from_slice(&nonce_bytes)
+            .map_err(|e| Error::Validation(format!("decode /auth/nonce: {e}")))?;
+
+        // Step 2: sign EIP-712 LoginMessage.
+        let domain_s = domain.into();
+        let uri_s = uri.into();
+        let params = LoginMessageParams {
+            wallet: signer.address(),
+            nonce: n.nonce.clone(),
+            scope_id: crate::types::ScopeId::from_hex(&n.scope_id)
+                .map_err(|e| Error::validation(format!("nonce scopeId decode: {e}")))?,
+            issued_at: n.issued_at.clone(),
+            domain: domain_s.clone(),
+            uri: uri_s.clone(),
+            chain_id: n.chain_id as u64,
+        };
+        let sig = signer.sign_login_message(&params)?;
+        let sig_hex = format!("0x{}", hex::encode(sig));
+
+        // Step 3: POST login.
+        let login_url = gamma
+            .base()
+            .join("auth/login")
+            .map_err(|e| Error::validation(format!("build /auth/login url: {e}")))?;
+        let body = serde_json::json!({
+            "signature": sig_hex,
+            "messageParams": {
+                "address": address_lower,
+                "nonce": n.nonce,
+                "scopeId": n.scope_id,
+                "issuedAt": n.issued_at,
+                "domain": domain_s,
+                "uri": uri_s,
+                "chainId": n.chain_id,
+            },
+        });
+        let login_resp = self
+            .inner
+            .http
+            .post(login_url)
+            .json(&body)
+            .send()
+            .await?;
+        let status = login_resp.status();
+        let bytes = login_resp.bytes().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(Error::api(
+                status,
+                "POST",
+                "/auth/login",
+                String::from_utf8_lossy(&bytes).into_owned(),
+            ));
+        }
+        #[derive(serde::Deserialize)]
+        struct TokenResp {
+            token: String,
+        }
+        let t: TokenResp = serde_json::from_slice(&bytes)
+            .map_err(|e| Error::Validation(format!("decode /auth/login: {e}")))?;
+        Ok(t.token)
     }
 
     /// Health check — `GET /ok`. Returns the raw body (`"OK"` for the chainup server).
