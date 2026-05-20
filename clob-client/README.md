@@ -61,8 +61,7 @@ use pm_rs_clob_client::{
 };
 use uuid::Uuid;
 
-let signer = PMCup26Signer::from_hex(&std::env::var("PM_PRIVATE_KEY")?)?
-    .with_chain_id(143)
+let signer = PMCup26Signer::from_hex(&std::env::var("PM_PRIVATE_KEY")?, /*chain_id=*/143)?
     .with_scope_id(ScopeId::from_hex("0x1811a132...196e95")?)
     .with_signature_type(SignatureType::PolyGnosisSafe);
 
