@@ -115,7 +115,7 @@ Last updated: 2026-05-19 (Phase 2.2: order construction / signing / placement / 
 | `data` (on-chain data aggregator) | `pm-cup2026` uses its own subgraph, different protocol |
 | `rtds` (real-time data stream) | Polymarket proprietary |
 | `rfq` (request for quote) | Polymarket proprietary |
-| `ctf` (on-chain CTF split / merge / redeem) | Better handled by the tenant wallet or front-end, not the SDK |
+| `ctf` (EOA-broadcast split / merge / redeem) | chainup only supports Safe-mode writes (`signatureType=2`). The CLI ships `pm ctf split / merge / redeem` against the chainup `relayer-service` (Safe meta-tx), but the EOA-direct broadcast variant Polymarket V1 ships is intentionally not provided. |
 | `gamma` streaming | `pm-cup2026` `gamma-service` is REST-only; no stream. REST surface implemented in Phase 3a — see [`docs/gamma.md`](gamma.md). |
 
 ### Polymarket V1 CLOB endpoints NOT in chainup `clob-service` (verified 2026-05-19)
