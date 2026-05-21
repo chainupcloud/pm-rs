@@ -24,7 +24,11 @@ pm-rs-clob-client = { git = "https://github.com/chainupcloud/pm-rs", package = "
 | Gamma (events, tags, profiles) | ✅ REST surface | Streaming variant intentionally not implemented (see Non-goals). |
 | WebSocket — market | ✅ Book / price-change / last-trade-price / tick-size-change / best-bid-ask / new-market / market-resolved | Adjacent encoding `tag="event_type", content="data"` matches live chainup wire. |
 | WebSocket — user | ✅ Order + trade events with auto-reconnect, runtime subscribe / unsubscribe | Lean payload mode: cancellation arrives as `{id, status}` only, both shapes decode cleanly. |
-| Approval helpers | ✅ Read-only `IERC20.allowance` + `IERC1155.isApprovedForAll` via alloy | `set` (Safe `execTransaction`) deferred — see Non-goals. |
+| Approval helpers | ✅ Read-only `IERC20.allowance` + `IERC1155.isApprovedForAll` via alloy | The `set` flow ships through the new Safe / relayer modules — see below. |
+| Safe meta-tx primitives (`safe` module) | ✅ Gnosis Safe v1.3 `SafeTransaction` + `multisend` packed encoder | `SafeTransaction::{call, delegate_call}` + `multisend::encode` produce wire-identical calldata to chainup's front-end. |
+| `SafeTx` / `LoginMessage` signing | ✅ Both EIP-712 types implemented on `PMCup26Signer` | `sign_safe_tx` and `sign_login_message` return Ethereum-`v` (27/28) signatures matching `Safe.execTransaction`'s on-chain verifier. |
+| Gamma `/auth/login` (JWT) | ✅ `Client::jwt_login` | One-shot `/auth/nonce` → sign `LoginMessage` → `/auth/login` → returns Bearer token for relayer auth. |
+| Relayer client (`relayer` module) | ✅ `RelayerClient::{submit, transaction, poll_until_terminal}` | Wire matches chainup's `pm-cup2026/services/relayer-service` (camelCase + the `safeTxnGas` typo). JWT or API-Key auth. |
 
 ## Quick start
 
@@ -140,6 +144,73 @@ client.post_order(signed, OrderType::Fak, false, "").await?;
 
 Chainup's server runs the actual book walk, but the signed envelope still carries `makerAmount` / `takerAmount` anchored at the price. The client validates lot size before signing: `amount / price` must be a multiple of 0.01.
 
+### Safe-mode write via the relayer (path B)
+
+For any on-chain write — token approvals, CTF split / merge / redeem — chainup only accepts `signatureType=2`. Instead of broadcasting from the EOA, sign a `Safe.execTransaction` payload and submit it to the chainup `relayer-service`; the relayer broadcasts from its own gas-key pool, so the user spends zero collateral.
+
+```rust
+use pm_rs_clob_client::{Client, PMCup26Signer};
+use pm_rs_clob_client::safe::SafeTransaction;
+use pm_rs_clob_client::relayer::{SafeTxParams, SubmitRequest, SubmitType};
+
+let client = Client::builder()
+    .tenant("hermestrade.xyz")?
+    .chain_id(143)
+    .build()?;
+
+let signer = PMCup26Signer::from_hex(&eoa_private_key, 143)?
+    .with_scope_id(scope_id);
+
+// 1. Build the inner call. Here: USDW.approve(NegRiskCtfExchange, MAX).
+let approve_data = /* encode usdw.approve(spender, MAX) */;
+let safe_tx = SafeTransaction::call(usdw, approve_data, safe_nonce);
+
+// 2. Sign the SafeTx EIP-712 payload (returns 65 bytes with v in {0x1b, 0x1c}).
+let signature = signer.sign_safe_tx(safe_address, &safe_tx)?;
+
+// 3. Get a JWT for the relayer (gamma-service /auth/nonce + /auth/login).
+let jwt = client.jwt_login(&signer, "hermestrade.xyz", "https://hermestrade.xyz").await?;
+
+// 4. Submit + poll until terminal.
+let relayer = client.relayer()?.with_token(&jwt);
+let req = SubmitRequest {
+    from: format!("{:#x}", signer.address()),
+    to: format!("{:#x}", safe_tx.to),
+    proxy_wallet: format!("{:#x}", safe_address),
+    data: format!("0x{}", hex::encode(&safe_tx.data)),
+    nonce: Some(safe_tx.nonce.to_string()),
+    signature: format!("0x{}", hex::encode(signature)),
+    signature_params: serde_json::to_value(SafeTxParams::relayer_pays(false))?,
+    r#type: SubmitType::Safe,
+    scope_id: Some(format!("{:#x}", signer.scope_id().as_b256())),
+    metadata: Some("approve".to_owned()),
+};
+let resp = relayer.submit(&req).await?;
+let final_tx = relayer
+    .poll_until_terminal(&resp.transaction_id,
+                         std::time::Duration::from_secs(3),
+                         std::time::Duration::from_secs(120))
+    .await?;
+println!("hash={} state={:?}", final_tx.transaction_hash, final_tx.state);
+```
+
+For batching multiple ops (e.g. fresh-wallet onboarding — USDW.approve to N spenders + CTF.setApprovalForAll to N operators), use [`safe::multisend::encode`] to pack `SafeSubOp::call(target, data)` into a single `DelegateCall` to the MultiSend contract:
+
+```rust
+use pm_rs_clob_client::safe::multisend::{self, SafeSubOp};
+
+let ops = vec![
+    SafeSubOp::call(usdw, encode_approve(ctf_exchange, U256::MAX)),
+    SafeSubOp::call(usdw, encode_approve(neg_risk_exchange, U256::MAX)),
+    SafeSubOp::call(ctf, encode_set_approval_for_all(ctf_exchange, true)),
+    SafeSubOp::call(ctf, encode_set_approval_for_all(neg_risk_exchange, true)),
+];
+let packed = multisend::encode(&ops)?;
+let safe_tx = SafeTransaction::delegate_call(multisend_address, packed, safe_nonce);
+```
+
+The CLI's `pm approve set --asset all` and `pm ctf {redeem,split,merge}` commands are full reference implementations of this pattern — see `cli/src/safe_exec.rs` for the shared plumbing.
+
 ### WebSocket — market channel
 
 ```rust
@@ -253,8 +324,8 @@ Things this SDK intentionally does **not** ship — typically because chainup's 
 - **`/rewards`, `/earnings/total`, `/reward-percentages`** + 4 more — chainup tenants run their own incentive logic.
 - **`/notifications`, `/closed-only-mode`, `/account-status`, `/geoblock`** — not exposed by chainup's CLOB.
 - **Gamma streaming** — chainup Gamma is REST-only.
-- **`approve set`** — Safe `execTransaction` broadcast path is queued behind an open backend question.
-- **Polymarket bridge, rtds, rfq, data API** — Polymarket-proprietary endpoints not present on chainup.
+- **EOA-broadcast `ctf split / merge / redeem`** — chainup only supports `signatureType=2` (Safe). The SDK provides the building blocks (`safe`, `relayer`, `sign_safe_tx`, `jwt_login`) so callers can compose any Safe meta-tx — but it does not ship an EOA-direct broadcaster, since the chainup backend does not honour those orders.
+- **Polymarket bridge, rtds, rfq** — Polymarket-proprietary endpoints not present on chainup.
 
 If chainup's backend later ships any of these, the SDK can be extended without breaking the existing surface.
 

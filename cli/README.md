@@ -115,15 +115,17 @@ pm auth nonce | grep scopeId
 
 Set it via flag, env var, or `pm wallet create --scope-id 0x…`.
 
-### Network config (`approve check`)
+### Network config (`approve check`, `approve set`, `ctf …`)
 
-`pm approve check` needs to know which contracts to query. Pass a YAML file (one ships at [`examples/networks/monad-hermestrade.yaml`](../examples/networks/monad-hermestrade.yaml)):
+Every command that touches the chain (`pm approve check / set`, `pm ctf redeem / split / merge / collection-id`) needs a tenant network YAML. One ships at [`examples/networks/monad-hermestrade.yaml`](../examples/networks/monad-hermestrade.yaml):
 
 ```bash
 pm approve check --network-config examples/networks/monad-hermestrade.yaml
+pm approve set   --network-config examples/networks/monad-hermestrade.yaml --execute
+pm ctf split     --network-config examples/networks/monad-hermestrade.yaml --condition-id 0x… --partition 1,2 --amount 1000 --execute
 ```
 
-The YAML schema is the same one used by the backend deploy tooling, so you can point at the file the tenant ops team already maintains.
+The YAML is the single source of truth for chain id, RPC URL, contract addresses (USDW, CTF, exchanges), and the relayer endpoint. It's the same shape the backend deploy tooling uses.
 
 ## Commands
 
@@ -242,10 +244,39 @@ pm heartbeat                                  # server-side liveness ping
 ### Approval helpers
 
 ```bash
+# Read-only — query allowance / setApprovalForAll status for every YAML target.
 pm approve check --network-config examples/networks/monad-hermestrade.yaml
+
+# Write — issue approvals via Safe meta-tx through the chainup relayer.
+# Defaults to dry-run (signs locally + prints the SubmitRequest, never POSTs).
+pm approve set --network-config examples/networks/monad-hermestrade.yaml
+
+# Default `--asset all` batches USDW.approve(target, MAX) +
+# CTF.setApprovalForAll(target, true) for every approval target into one
+# MultiSend. This is what a fresh community wallet needs.
+pm approve set --network-config examples/networks/monad-hermestrade.yaml --execute
+
+# Narrow the batch:
+pm approve set --asset usdw --execute              # USDW.approve only
+pm approve set --asset ctf  --execute              # CTF.setApprovalForAll only
+pm approve set --spender 0x017641…  --execute      # one target only (single Call, not MultiSend)
+pm approve set --spender 0xd77d5500…  --execute    # add ConditionalTokens — prerequisite for pm ctf split/merge
 ```
 
-Reads `IERC20.allowance(owner, target)` + `IERC1155.isApprovedForAll(owner, target)` for every spender in the YAML. Read-only — no on-chain writes. The `set` flow is deferred while the Safe `execTransaction` path is finalized (see [Non-goals](#non-goals)).
+Gas is paid by the relayer's key pool; the user spends **zero collateral**. Polling is built-in: `--poll-interval-secs` (default 2) and `--poll-timeout-secs` (default 60) control how long the CLI waits for `STATE_CONFIRMED`.
+
+### Safe-mode writes via the relayer (path B)
+
+Every `pm` write command runs through the same flow — the only difference between `approve set` and `ctf {redeem,split,merge}` is the encoded calldata:
+
+1. **JWT login** — `Client::jwt_login` hits gamma-service `/auth/nonce` → signs an EIP-712 `LoginMessage` → `POST /auth/login` → returns a Bearer JWT.
+2. **Safe nonce** — read `Safe.nonce()` from the YAML's `network.rpc_url`.
+3. **Build SafeTx** — either a single `Call` (one op) or `DelegateCall` to MultiSend (N ops).
+4. **Sign** — `PMCup26Signer::sign_safe_tx` produces 65 bytes with Ethereum `v` in {0x1b, 0x1c}.
+5. **Submit** — `POST relayer /submit` with the signed `SubmitRequest`. Returns a `transactionID` immediately; the relayer broadcasts asynchronously.
+6. **Poll** — `GET relayer /transaction?id=…` until terminal: `STATE_CONFIRMED`, `STATE_FAILED`, or `STATE_DROPPED`. CLI surfaces the final tx hash + state.
+
+You don't pay gas (the relayer covers it from its own key pool). You don't need any external broadcaster. All you need is the EOA private key + the Safe address.
 
 ### WebSocket
 
@@ -258,6 +289,36 @@ pm ws user --markets cond1,cond2              # filter to specific condition ids
 ```
 
 Connection state survives transient disconnects — the SDK auto-reconnects and replays the subscription.
+
+### Conditional Token Framework
+
+Helpers for the Gnosis CTF protocol the markets settle on. Mixes pure off-chain calculations, a JSON-RPC fallback for the EC-heavy collection-id, and Safe-mode writes through the chainup relayer.
+
+```bash
+# Pure off-chain — no RPC, no signer
+pm ctf condition-id --oracle 0xUMA --question 0x… --outcomes 2
+pm ctf position-id  --collateral 0xUSDW --collection 0x…
+
+# RPC fallback — calls CTF.getCollectionId(parent, condition, indexSet) on-chain
+# (the local formula needs alt_bn128 EC point addition, which we defer to the chain).
+pm ctf collection-id --network-config examples/networks/monad-hermestrade.yaml \
+        --condition-id 0x… --index-set 1
+
+# Safe-mode writes — same path-B flow as `pm approve set`. Default dry-run; --execute submits.
+pm ctf redeem --network-config <yaml> --condition-id 0x… --index-sets 1
+pm ctf split  --network-config <yaml> --condition-id 0x… --partition 1,2 --amount 1000
+pm ctf merge  --network-config <yaml> --condition-id 0x… --partition 1,2 --amount 1000
+```
+
+Amounts are in raw smallest units (USDW has 6 decimals, so 1 USDW = `1_000_000`). For `split` / `merge`, ensure the Safe holds enough collateral (split) or a full outcome-token set (merge); `redeem` only succeeds after the condition is reported on-chain.
+
+`split` / `merge` go directly through `ConditionalTokens` — the Safe must have USDW approved for that contract (not in the default `approve set` target list). One-time setup:
+
+```bash
+pm approve set --asset usdw --spender 0xd77d550092aB455bd1b9071E4185eCbB6E8d6a2A --execute
+```
+
+(Address shown is the Monad ConditionalTokens contract; check your YAML's `contracts.conditional_tokens` value.)
 
 ## Common workflows
 
@@ -272,16 +333,28 @@ pm --tenant hermestrade.xyz price-history 3404...0576 --interval 1d
 ### From zero to first order
 
 ```bash
-# Pick wallet + chain config once
+# 1. Pick wallet + chain config once
 pm wallet create --signature-type gnosis-safe --chain-id 143 \
                  --scope-id 0x1811a132...196e95
 pm wallet set-safe 0xYOUR_SAFE                  # the Safe controlled by your EOA
 
-# Verify the Safe is funded + approved
+# 2. Verify the Safe is funded + check current approval state
 pm balance --asset-type collateral
 pm approve check --network-config examples/networks/monad-hermestrade.yaml
 
-# Fire your first order
+# 3. If approvals are missing, batch USDW.approve + CTF.setApprovalForAll in
+#    ONE Safe meta-tx via the chainup relayer (relayer pays gas, you pay 0 USDW).
+pm approve set --network-config examples/networks/monad-hermestrade.yaml --execute
+
+# (Optional) If you plan to use `pm ctf split/merge`, also approve the
+# ConditionalTokens contract as a USDW spender:
+pm approve set --network-config examples/networks/monad-hermestrade.yaml \
+               --asset usdw --spender 0xd77d550092aB455bd1b9071E4185eCbB6E8d6a2A --execute
+
+# 4. Mint an L2 API key for trading
+pm auth create-key
+
+# 5. Fire your first order
 pm order create --token 3404...0576 --side buy --price 0.10 --size 5 \
                 --fee-rate-bps 20 --maker 0xYOUR_SAFE
 ```
@@ -330,14 +403,14 @@ pm order create ...
 
 ## Non-goals
 
-Commands intentionally omitted because chainup's backend doesn't expose the underlying endpoint:
+Commands intentionally omitted because chainup's backend doesn't expose the underlying endpoint, or because the equivalent is provided through a different surface:
 
 - **Market browsing** — `markets list / get / sampling-markets / simplified-markets`. Chainup pushes discovery through Gamma instead (`pm gamma events …`).
 - **Polymarket rewards** — `rewards list / earnings / reward-percentages / current-rewards / orders-scoring`. Chainup tenants run their own incentive logic.
 - **Notifications + account state** — `notifications / closed-only-mode / account-status / geoblock / neg-risk` (the neg-risk flag is embedded in the `/book` response).
-- **`bridge`, `data`, `rtds`, `rfq`, `ctf split / merge / redeem`** — Polymarket-proprietary or front-end-handled.
-- **`upgrade`, `shell`, `setup`** — on the roadmap (see `.local/TODO.md`), not yet shipped.
-- **`approve set`** — deferred behind the Safe `execTransaction` broadcast question.
+- **`bridge`, `rtds`, `rfq`** — Polymarket-proprietary endpoints not present on chainup.
+- **EOA-broadcast `ctf` writes** — Polymarket V1 broadcasts `splitPosition / mergePositions / redeemPositions` directly from the EOA. chainup only supports `signatureType=2` (Safe), so `pm ctf {split,merge,redeem}` instead routes through the chainup `relayer-service` (Safe meta-tx). Same functional outcome, different wire path.
+- **`upgrade`** — on the roadmap; not yet shipped.
 
 ## Output formats
 
