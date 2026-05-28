@@ -7,7 +7,7 @@
 //! - **Gamma REST** (`gamma-api.<tenant>`) — market metadata: events, markets, tags.
 //! - **CLOB WebSocket** (`clob-ws.<tenant>`) — real-time order-book + user-channel push.
 //! - **Data REST** (`data-api.<tenant>`) — portfolio, trades, activity, leaderboards.
-//!   Wraps the chainup `data-service` microservice.
+//!   Wraps the `data-service` microservice.
 //!
 //! Construct an [`Endpoints`] from any of: explicit URLs, the canonical subdomain pattern
 //! (`Endpoints::from_tenant("hermestrade.xyz")`), or a single CLOB URL for Phase 1
@@ -23,11 +23,11 @@ pub struct Endpoints {
     pub clob: Url,
     pub gamma: Option<Url>,
     pub ws: Option<Url>,
-    /// `data-api.<tenant>` — chainup data-service (portfolio / trades / activity /
+    /// `data-api.<tenant>` — data-service (portfolio / trades / activity /
     /// leaderboards). Optional because Phase 1 read-only flows don't need it; the
     /// data sub-client will surface a validation error if it's missing.
     pub data: Option<Url>,
-    /// `relayer-api.<tenant>` — chainup relayer-service (Safe meta-tx submission).
+    /// `relayer-api.<tenant>` — relayer-service (Safe meta-tx submission).
     /// Optional; required when calling [`crate::relayer::RelayerClient`].
     pub relayer: Option<Url>,
 }
@@ -50,7 +50,7 @@ impl Endpoints {
         })
     }
 
-    /// Derive all four endpoints from a tenant root host using the chainup canonical
+    /// Derive all four endpoints from a tenant root host using the canonical
     /// subdomain pattern: `clob-api.<host>` / `gamma-api.<host>` / `clob-ws.<host>` (ws over
     /// TLS) / `data-api.<host>`. For example: `Endpoints::from_tenant("hermestrade.xyz")`
     /// resolves to `https://clob-api.hermestrade.xyz`, `https://gamma-api.hermestrade.xyz`,

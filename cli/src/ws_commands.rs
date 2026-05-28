@@ -1,4 +1,4 @@
-//! CLI subcommands for the chainup CLOB WebSocket channels.
+//! CLI subcommands for the CLOB WebSocket channels.
 //!
 //! Wired into [`crate::commands::run`] via a single `Command::Ws` match arm so
 //! the diff with shared CLI files stays minimal.

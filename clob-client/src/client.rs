@@ -1,4 +1,4 @@
-//! Top-level [`Client`] for the chainup CLOB REST API.
+//! Top-level [`Client`] for the CLOB REST API.
 //!
 //! Phase 1 surface (public, no auth required):
 //!
@@ -291,7 +291,7 @@ impl Client {
         Ok(t.token)
     }
 
-    /// Health check — `GET /ok`. Returns the raw body (`"OK"` for the chainup server).
+    /// Health check — `GET /ok`. Returns the raw body (`"OK"` for the server).
     pub async fn ok(&self) -> Result<String> {
         let url = self.clob("/ok")?;
         let resp = self.inner.http.get(url).send().await?;
@@ -358,7 +358,7 @@ impl Client {
             .await
     }
 
-    // ─── Phase 2.x: batch reads (chainup uses POST with JSON-array body) ────
+    // ─── Phase 2.x: batch reads (POST with JSON-array body) ────
 
     /// Batch midpoints — `POST /midpoints`. Body: `[{"token_id": "..."}, ...]`. Returns a
     /// map `token_id -> midpoint-as-string`.
@@ -416,7 +416,7 @@ impl Client {
     ) -> Result<Vec<LastTradePriceEntry>> {
         if token_ids.len() > 500 {
             return Err(Error::validation(format!(
-                "last_trades_prices: chainup accepts at most 500 token_ids per request (got {})",
+                "last_trades_prices: accepts at most 500 token_ids per request (got {})",
                 token_ids.len()
             )));
         }
@@ -424,7 +424,7 @@ impl Client {
         self.post_json_unauth("/last-trades-prices", &body).await
     }
 
-    /// Price history — `GET /price-history?token_id=...&interval=...`. Chainup intervals:
+    /// Price history — `GET /price-history?token_id=...&interval=...`. Supported intervals:
     /// `1H | 6H | 1D | 1W | 1M | ALL`. The optional `fidelity` (sample period in minutes)
     /// and `limit` (cap on returned points) match the server defaults when set to `None`.
     pub async fn price_history(
@@ -498,7 +498,7 @@ impl Client {
 
     /// Idempotent: try `POST /auth/api-key` first; on any 4xx response fall back to
     /// `GET /auth/derive-api-key`. Mirrors `rs-clob-client`'s
-    /// `Client::create_or_derive_api_key` flow with chainup `PRED_*` headers.
+    /// `Client::create_or_derive_api_key` flow with `PRED_*` headers.
     pub async fn create_or_derive_api_key(
         &self,
         signer: &PMCup26Signer,
@@ -576,7 +576,7 @@ impl Client {
 
     // ─── Phase 2.1: L2 auth — read methods ──────────────────────────────
 
-    /// `GET /auth/api-keys` — list active API keys + chainup `proxy_wallet` for the
+    /// `GET /auth/api-keys` — list active API keys + `proxy_wallet` for the
     /// authenticated address. Requires [`ClientBuilder::credentials`] + [`ClientBuilder::chain_id`].
     pub async fn api_keys(&self) -> Result<ApiKeyInfo> {
         self.l2_get_json::<ApiKeyInfo>("/auth/api-keys", &[]).await
@@ -742,7 +742,7 @@ impl Client {
         }
         if signed.len() > 15 {
             return Err(Error::validation(format!(
-                "post_orders: chainup accepts at most 15 orders per batch (got {})",
+                "post_orders: accepts at most 15 orders per batch (got {})",
                 signed.len()
             )));
         }
@@ -797,7 +797,7 @@ impl Client {
     pub async fn cancel_orders(&self, order_ids: &[String]) -> Result<CancelOrdersResponse> {
         if order_ids.len() > 3000 {
             return Err(Error::validation(format!(
-                "cancel_orders: chainup accepts at most 3000 ids per batch (got {})",
+                "cancel_orders: accepts at most 3000 ids per batch (got {})",
                 order_ids.len()
             )));
         }
@@ -1136,7 +1136,7 @@ impl ClientBuilder {
         self
     }
 
-    /// Derive all three endpoints from a tenant root host using the canonical chainup subdomain
+    /// Derive all three endpoints from a tenant root host using the canonical subdomain
     /// pattern (`clob-api.<host>` / `gamma-api.<host>` / `clob-ws.<host>`).
     pub fn tenant(mut self, tenant_host: impl AsRef<str>) -> Result<Self> {
         self.endpoints = Some(Endpoints::from_tenant(tenant_host)?);

@@ -30,7 +30,7 @@ subcommands.
 ## Amount math
 
 `price` ∈ `(0, 1)`, `size` ∈ `(0, ∞)` (human-readable shares; max 2 decimals). The SDK
-converts to 6-decimal raw integers (matching chainup's USDC + CTF token precision):
+converts to 6-decimal raw integers (matching the USDC + CTF token precision):
 
 | Side | `makerAmount`                | `takerAmount`              |
 |------|------------------------------|----------------------------|
@@ -50,11 +50,11 @@ not rounding, matching `pm-sdk-go::toBaseUnits`.
 
 When `OrderBuilder::minimum_tick_size(...)` is set (typically by callers fetching
 `GET /tick-size` for the token), the SDK enforces the price decimals + bounds. Out of
-band, the chainup server enforces the same rule and rejects orders that don't comply.
+band, the server enforces the same rule and rejects orders that don't comply.
 
 ## Fee algorithm
 
-`feeRateBps` is required on every order. The server applies the chainup
+`feeRateBps` is required on every order. The server applies the
 `min(p, 1-p)`-adjusted formula to compute the actual fee at fill time:
 
 - **BUY** fee in tokens: `min(p, 1-p) / p × size × bps / 10000`
@@ -72,7 +72,7 @@ on-chain `ECDSA.recover` path that the relayer takes for both EOA and
 `POLY_GNOSIS_SAFE` signature types. The server-side L2 verifier accepts both `{0, 1}`
 and `{27, 28}`; we standardise on `{27, 28}` for end-to-end parity.
 
-## Safe-wallet architecture (chainup default)
+## Safe-wallet architecture (default)
 
 With `signatureType = 2` (PolyGnosisSafe):
 
@@ -186,11 +186,11 @@ pm ... heartbeat
 
 ## Differences vs Polymarket V1
 
-- chainup salt = `time.Now().UnixNano()` masked to 53 bits (matches pm-sdk-go); rs-clob-client
+- Salt = `time.Now().UnixNano()` masked to 53 bits (matches pm-sdk-go); rs-clob-client
   uses a randomised mask of `seconds × rand_f64`.
-- `OrderBuilder` does NOT walk the order book client-side for market orders. The chainup
+- `OrderBuilder` does NOT walk the order book client-side for market orders. The
   server does the actual book traversal; the SDK only signs the limit-price anchor.
-- The salt / fee-rate fields are still uint256 strings on the wire but chainup accepts
+- The salt / fee-rate fields are still uint256 strings on the wire but the server accepts
   any decimal up to 78 digits (`clob_orders.salt VARCHAR(78)`); the SDK pins salt to
   `u64::masked_53_bits` per pm-sdk-go to keep numeric round-trips clean.
 - Phase 2.2 leaves Builder-program client-side flows out of scope; `GET /builder/trades`

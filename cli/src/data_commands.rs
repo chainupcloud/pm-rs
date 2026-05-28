@@ -1,9 +1,9 @@
-//! CLI subcommands for the chainup `data-service`.
+//! CLI subcommands for the `data-service`.
 //!
 //! Mirrors `polymarket-cli`'s `data {positions / closed-positions / trades / activity /
 //! holders / open-interest / live-volume / leaderboard / ...}` tree, dropping commands
-//! whose endpoint doesn't exist on chainup (`builder-leaderboard`, `builder-volume`,
-//! `value`) and adding chainup-only ones (`unwrap-requests`).
+//! whose endpoint doesn't exist here (`builder-leaderboard`, `builder-volume`,
+//! `value`) and adding platform-only ones (`unwrap-requests`).
 //!
 //! Wired into [`crate::commands::run`] via a `Command::Data` arm so the diff with shared
 //! CLI files stays minimal. Endpoints are public read-only (no L1 / L2 auth required).
@@ -48,7 +48,7 @@ pub enum DataCmd {
     Stats,
     /// `GET /v1/leaderboard` — trader leaderboard (with biggest-wins sidebar).
     Leaderboard(LeaderboardArgs),
-    /// `GET /unwrap-requests` — USDW unwrap queue for a Safe address (chainup-only).
+    /// `GET /unwrap-requests` — USDW unwrap queue for a Safe address.
     UnwrapRequests(UnwrapRequestsArgs),
 }
 
@@ -105,7 +105,7 @@ pub struct HoldersArgs {
 pub struct PricesHistoryArgs {
     /// Token id (or market id, depending on data-service implementation).
     pub market: String,
-    /// Bucket interval (chainup: `1m / 1h / 6h / 1d / max`).
+    /// Bucket interval (`1m / 1h / 6h / 1d / max`).
     #[arg(long)]
     pub interval: Option<String>,
     /// Fidelity in seconds.

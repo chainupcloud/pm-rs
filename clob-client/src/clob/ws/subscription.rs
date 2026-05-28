@@ -132,7 +132,7 @@ impl UserStream {
         Self { rx, cmd_tx, state, _conn: conn }
     }
 
-    /// Add more condition IDs to the active subscription. Note: the chainup
+    /// Add more condition IDs to the active subscription. Note: the
     /// server interprets `subscribe` with a non-empty list as switching from
     /// "all markets" to filtered mode.
     pub async fn subscribe(&self, condition_ids: Vec<String>) -> Result<(), WsError> {

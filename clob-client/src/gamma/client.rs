@@ -1,6 +1,6 @@
-//! HTTP client for the chainup Gamma API (market metadata).
+//! HTTP client for the Gamma API (market metadata).
 //!
-//! Gamma is a separate REST service from CLOB; in chainup it lives at
+//! Gamma is a separate REST service from CLOB; it lives at
 //! `gamma-api.<tenant>` (e.g. `https://gamma-api.hermestrade.xyz`). It provides
 //! events, markets, tags, series, comments, profiles, search, and per-tenant
 //! curation / public-info endpoints.
@@ -353,7 +353,7 @@ mod tests {
 
     #[test]
     fn events_query_serializes_with_camelcase_keys() {
-        // The chainup server reads `tag_id`, `start_date_min` etc. as snake_case.
+        // The server reads `tag_id`, `start_date_min` etc. as snake_case.
         let req = ListEventsRequest {
             limit: Some(20),
             offset: Some(40),

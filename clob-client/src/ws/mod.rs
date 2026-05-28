@@ -1,6 +1,6 @@
-//! Generic WebSocket infrastructure shared by the chainup CLOB channels.
+//! Generic WebSocket infrastructure shared by the CLOB channels.
 //!
-//! This module wraps [`tokio_tungstenite`] with three chainup-specific behaviors:
+//! This module wraps [`tokio_tungstenite`] with three specific behaviors:
 //!
 //! 1. Text-only framing — both the market and user channels exchange JSON-text
 //!    frames (and the literal text strings `"PING"` / `"PONG"`). Binary frames

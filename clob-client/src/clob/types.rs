@@ -1,4 +1,4 @@
-//! Wire types for the chainup CLOB REST API. Matches `pm-cup2026/services/clob-service/docs/openapi.yaml`.
+//! Wire types for the CLOB REST API. Matches `pm-cup2026/services/clob-service/docs/openapi.yaml`.
 
 use std::collections::HashMap;
 use std::fmt;
@@ -9,7 +9,7 @@ use serde_with::{DisplayFromStr, serde_as};
 
 use crate::types::{Side, SignatureType};
 
-/// Deserializer helper: chainup sometimes returns `null` instead of `[]` for empty list
+/// Deserializer helper: the server sometimes returns `null` instead of `[]` for empty list
 /// fields (e.g. `associate_trades` on a freshly placed order with no fills, `data` on a
 /// `/orders` page with no results). Treat `null` as an empty vec.
 fn null_as_empty_vec<'de, D, T>(d: D) -> Result<Vec<T>, D::Error>
@@ -48,7 +48,7 @@ pub struct TickSizeResponse {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct FeeRateResponse {
-    /// Fee rate in basis points. Chainup returns this field as `base_fee`; Polymarket V1 uses
+    /// Fee rate in basis points. Server returns this field as `base_fee`; Polymarket V1 uses
     /// `fee_rate_bps` / `feeRateBps`.
     #[serde(alias = "feeRateBps", alias = "fee_rate_bps", alias = "base_fee")]
     pub fee_rate_bps: u64,
@@ -64,7 +64,7 @@ pub struct LastTradePriceResponse {
 pub struct OrderBookSummary {
     /// The CLOB token id (uint256 decimal string).
     pub asset_id: String,
-    /// Condition id this token belongs to — chainup sends this as `market` alongside
+    /// Condition id this token belongs to — the server sends this as `market` alongside
     /// `asset_id` in the same payload, so the two are distinct fields, not aliases.
     #[serde(default)]
     pub market: Option<String>,
@@ -74,19 +74,19 @@ pub struct OrderBookSummary {
     pub timestamp: Option<String>,
     #[serde(default)]
     pub hash: Option<String>,
-    /// Chainup-specific: server's last-trade-price echo (decimal string).
+    /// Server-specific: last-trade-price echo (decimal string).
     #[serde(default)]
     pub last_trade_price: Option<String>,
-    /// Chainup-specific: per-market tick size returned inside `/book` (decimal string).
+    /// Server-specific: per-market tick size returned inside `/book` (decimal string).
     #[serde(default)]
     pub tick_size: Option<String>,
-    /// Chainup-specific: neg-risk flag returned inside `/book`.
+    /// Server-specific: neg-risk flag returned inside `/book`.
     #[serde(default)]
     pub neg_risk: Option<bool>,
-    /// Chainup-specific: minimum order size (decimal string).
+    /// Server-specific: minimum order size (decimal string).
     #[serde(default)]
     pub min_order_size: Option<String>,
-    /// Chainup-specific: maximum order size (decimal string). Empty string when uncapped.
+    /// Server-specific: maximum order size (decimal string). Empty string when uncapped.
     #[serde(default)]
     pub max_order_size: Option<String>,
 }
@@ -105,7 +105,7 @@ pub struct OrderBookLevel {
 #[derive(Clone, Debug, Serialize)]
 pub struct PriceRequest {
     pub token_id: String,
-    /// Either "buy" or "sell". Required by the chainup endpoint.
+    /// Either "buy" or "sell". Required by the endpoint.
     pub side: Side,
 }
 
@@ -139,7 +139,7 @@ pub struct LastTradePriceEntry {
 
 // ─── Price history ─────────────────────────────────────────────────────────
 
-/// `GET /price-history` interval enum. Chainup-flavored values; no minute granularity.
+/// `GET /price-history` interval enum. Available intervals; no minute granularity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PriceHistoryInterval {
     H1,
@@ -229,7 +229,7 @@ impl fmt::Display for AssetType {
 
 /// Response from `GET /auth/api-keys` (L2-authenticated).
 ///
-/// chainup-specific: `proxy_wallet` (Safe address, derived from EOA + scopeId at API-key
+/// `proxy_wallet` (Safe address, derived from EOA + scopeId at API-key
 /// creation time) is returned alongside the key list.
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct ApiKeyInfo {
@@ -240,14 +240,14 @@ pub struct ApiKeyInfo {
     #[serde(default)]
     pub address: Option<String>,
     /// Safe wallet address (CREATE2-derived from `signer + scopeId`). Present when at least
-    /// one key has it stored. chainup-specific field; absent on Polymarket V1.
+    /// one key has it stored. Extension field; absent on Polymarket V1.
     #[serde(default, alias = "proxyWallet", alias = "proxy_wallet")]
     pub proxy_wallet: Option<String>,
 }
 
 /// Response from `GET /balance-allowance` (L2-authenticated).
 ///
-/// chainup automatically derives the Safe address from `EOA + scopeId` and returns the Safe
+/// The server automatically derives the Safe address from `EOA + scopeId` and returns the Safe
 /// wallet's balance, not the EOA's. When the server-side virtual-balance manager is
 /// enabled the response also includes `virtual_available` and `locked`.
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -260,11 +260,11 @@ pub struct BalanceAllowanceResponse {
     /// `onchain.Client` configured.
     #[serde(default)]
     pub allowances: HashMap<String, String>,
-    /// chainup-specific: available balance after subtracting open-order locks. Only set when
+    /// Available balance after subtracting open-order locks. Only set when
     /// the virtual-balance manager is enabled.
     #[serde(default, rename = "virtual_available")]
     pub virtual_available: Option<String>,
-    /// chainup-specific: amount locked by open orders. Only set when virtual-balance is enabled.
+    /// Amount locked by open orders. Only set when virtual-balance is enabled.
     #[serde(default)]
     pub locked: Option<String>,
 }
@@ -394,7 +394,7 @@ pub struct SendOrderRequest {
     pub order_type: OrderType,
     #[serde(rename = "postOnly", default, skip_serializing_if = "is_false")]
     pub post_only: bool,
-    /// chainup-specific: reserved flag for matched-but-defer-execution behaviour. Always
+    /// Reserved flag for matched-but-defer-execution behaviour. Always
     /// false from this SDK.
     #[serde(rename = "deferExec", default, skip_serializing_if = "is_false")]
     pub defer_exec: bool,
@@ -494,7 +494,7 @@ pub struct TradesRequest {
     pub before: Option<i64>,
     /// Unix-seconds lower bound.
     pub after: Option<i64>,
-    /// Snowflake `from_id` ASC cursor (chainup-specific).
+    /// Snowflake `from_id` ASC cursor.
     pub from_id: Option<i64>,
     /// Page size [1, 1000]. Server default 100.
     pub limit: Option<u32>,

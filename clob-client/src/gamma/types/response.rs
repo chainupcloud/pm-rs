@@ -1,4 +1,4 @@
-//! Response types for the chainup Gamma API.
+//! Response types for the Gamma API.
 //!
 //! Field shapes mirror `pm-cup2026/services/gamma-service/internal/models/models.go` byte-for-byte:
 //! - Required string IDs are `String` (never `Option`).
@@ -8,7 +8,7 @@
 //! - Almost every other field is nullable on the wire (Go `*T` pointers),
 //!   surfaced as `Option<T>` here.
 //!
-//! Field-set is a superset of what Polymarket Gamma returns — chainup adds
+//! Field-set is a superset of what Polymarket Gamma returns — this API adds
 //! `questionTranslation` / `outcomeTranslation` / `titleTranslation` (i18n),
 //! `adjudication` (UMA oracle lifecycle), `marketMakerAddress` and `clobTokenIds`
 //! as plain JSON-array strings, etc. We keep the wire types thin (no derived
@@ -197,7 +197,7 @@ pub struct Template {
     pub outcomes: Option<String>,
 }
 
-// ─── Adjudication (UMA oracle lifecycle, chainup-specific) ──────────────────
+// ─── Adjudication (UMA oracle lifecycle) ────────────────────────────────────
 
 /// A single possible next action in the adjudication lifecycle.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -210,7 +210,7 @@ pub struct NextStep {
 
 /// Oracle adjudication lifecycle and result for a market condition.
 ///
-/// chainup-specific; not present in Polymarket Gamma. Surfaced so the user-dapp
+/// Not present in Polymarket Gamma. Surfaced so the user-dapp
 /// dispute flow can read adapter data without indexing chain events.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]

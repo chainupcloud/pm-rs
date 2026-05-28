@@ -10,7 +10,7 @@ use pm_rs_clob_client::clob::ws::types::response::{
 };
 
 /// Live frame captured on 2026-05-20 from `clob-ws.hermestrade.xyz` (Monad).
-/// Carries `match_type` and `order_id` (chainup extensions over the asyncapi spec) and
+/// Carries `match_type` and `order_id` (server extensions over the asyncapi spec) and
 /// uses short-UPPERCASE `MATCHED` for status. Every other documented field is absent.
 const LIVE_TRADE_FRAME: &str = r#"{"event_type":"trade","owner":"b40cbc5f-b3c0-4644-94a1-57e859f0038b","condition_id":"0xb808642dacfc6af662e46d58a118564afa1df134d41952e37532ef7b4b89001e","data":{"asset_id":"75376549546305181946655842061972812241926814861786064316719293942708924791063","id":"315312644720427008","match_type":"MINT","order_id":"315312644699455488","price":"0.91","side":"BUY","size":"5","status":"MATCHED"}}"#;
 
@@ -31,7 +31,7 @@ fn round_trip_user(raw: &str) {
 
 #[test]
 fn market_event_round_trip_for_every_documented_variant() {
-    // Chainup wire format wraps each market event's payload inside `data: {...}`.
+    // Server wire format wraps each market event's payload inside `data: {...}`.
     // The asyncapi spec shows a flat shape; production diverges. We follow live behaviour.
     let fixtures = [
         // book
@@ -56,7 +56,7 @@ fn market_event_round_trip_for_every_documented_variant() {
 
 #[test]
 fn user_event_round_trip_for_every_documented_variant() {
-    // Chainup nests the order/trade payload inside `data: {...}` and echoes `owner` /
+    // Server nests the order/trade payload inside `data: {...}` and echoes `owner` /
     // `condition_id` at the top level alongside `event_type`.
     let order = r#"{"event_type":"order","data":{"type":"PLACEMENT","id":"0x","owner":"o","market":"0xcid","asset_id":"1","side":"BUY","original_size":"10","size_matched":"0","price":"0.5","outcome":"Yes","order_type":"GTC","status":"ORDER_STATUS_LIVE","maker_address":"0xs","expiration":0,"created_at":1,"associate_trades":null,"lazy":"false","timestamp":1}}"#;
     let trade = r#"{"event_type":"trade","data":{"type":"TRADE","id":"t","taker_order_id":"0x","market":"0xcid","asset_id":"1","side":"BUY","size":"1","price":"0.5","fee_rate_bps":"10","status":"TRADE_STATUS_MATCHED","outcome":"Yes","owner":"o","maker_address":"0xs","transaction_hash":"","bucket_index":0,"matchtime":1,"last_update":1,"trader_side":"TAKER","maker_orders":[],"timestamp":1}}"#;
@@ -65,7 +65,7 @@ fn user_event_round_trip_for_every_documented_variant() {
 }
 
 #[test]
-fn live_trade_frame_decodes_with_chainup_extensions() {
+fn live_trade_frame_decodes_with_server_extensions() {
     let ev: UserEvent = serde_json::from_str(LIVE_TRADE_FRAME).expect("live trade frame decodes");
     let UserEvent::Trade(t) = ev else { panic!("wrong variant") };
     assert_eq!(t.id, "315312644720427008");

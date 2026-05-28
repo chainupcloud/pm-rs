@@ -4,7 +4,7 @@
 //!   distinctly from transient transport errors.
 //! - A text-frame heartbeat loop that sends the literal string `"PING"` at
 //!   [`WsConfig::ping_interval`] and treats incoming `"PONG"` as keep-alives
-//!   (the chainup server expects PING/PONG as **text** frames, not the
+//!   (the server expects PING/PONG as **text** frames, not the
 //!   WebSocket protocol-level Ping opcode — see
 //!   `services/clob-service/internal/wsservice/market_channel.go`).
 //! - A typed event stream surfacing [`WsEvent::Connected`] /
@@ -69,7 +69,7 @@ impl WsConnection {
     /// the first [`WsEvent::Connected`] event signals that the upgrade has
     /// completed.
     ///
-    /// `extra_headers` is currently empty for both chainup channels but kept
+    /// `extra_headers` is currently empty for both channels but kept
     /// in the signature so we can attach `User-Agent` / proxy headers later.
     #[must_use = "dropping the WsConnection cancels the background task"]
     pub fn dial(
@@ -245,7 +245,7 @@ where
                     }
                 }
                 Some(Ok(Message::Binary(_))) => {
-                    // chainup never emits binary frames; ignore.
+                    // Server never emits binary frames; ignore.
                 }
                 Some(Ok(Message::Ping(payload))) => {
                     // Reply at the protocol level if the server uses real ping frames.
@@ -282,7 +282,7 @@ where
         ticker.tick().await;
         loop {
             ticker.tick().await;
-            // Send the chainup text-frame heartbeat. The server replies with
+            // Send the text-frame heartbeat. The server replies with
             // the text "PONG" which the reader silently consumes.
             let mut guard = writer.lock().await;
             let sink: &mut futures_util::stream::SplitSink<

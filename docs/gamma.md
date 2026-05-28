@@ -1,7 +1,7 @@
 # Gamma client (Phase 3a)
 
-`pm-rs-clob-client` exposes the chainup Gamma REST API via [`GammaClient`](../clob-client/src/gamma/client.rs).
-Gamma is a separate REST service from CLOB; in chainup it lives at
+`pm-rs-clob-client` exposes the Gamma REST API via [`GammaClient`](../clob-client/src/gamma/client.rs).
+Gamma is a separate REST service from CLOB; it lives at
 `gamma-api.<tenant>` (e.g. `https://gamma-api.hermestrade.xyz`) and serves
 market metadata: events, markets, tags, series, comments, profiles, search,
 plus per-tenant curation and public-info catalogs. The SDK port mirrors
@@ -76,21 +76,21 @@ If the client was constructed with only `--clob-endpoint` and no Gamma URL,
 
 ## Differences vs Polymarket Gamma
 
-| Dimension | Polymarket Gamma | chainup Gamma |
-|-----------|------------------|---------------|
+| Dimension | Polymarket Gamma | pm-rs Gamma |
+|-----------|-----------------|-------------|
 | Service URL | `https://gamma-api.polymarket.com` | `https://gamma-api.<tenant>` (multi-tenant) |
 | Tenant isolation | none | hostname `Host` header → tenant ID + per-tenant rows |
 | Wire stream | gamma SSE / streaming variant exists | REST only (no streaming in `gamma-service`) |
-| `Event.titleTranslation` / `Market.questionTranslation` / `Market.outcomeTranslation` | absent | chainup i18n payload (multi-language JSON string) |
-| `Market.adjudication` | absent | chainup-specific; UMA oracle lifecycle state + `nextSteps`, `questionId`, `adapterAddress` for the user-dapp dispute flow |
-| `Market.sportPlayType` / `Market.adapterInstance` | absent | chainup-specific; tenant-routing fields for the relayer |
-| `/markets/information` body | exhaustive Polymarket filter | accepts a free-form JSON shape (`gamma-service` `MarketsInformationBody`); fields like `negRiskOther`, `rfqEnabled`, etc. do not exist on chainup |
-| `/curation/events` | absent | chainup-specific per-tenant featured / hero / highlight catalog |
-| `/public-info` | absent | chainup tenant brand + chain config + contract addresses |
-| `/agreements` | absent | chainup tenant agreements polling endpoint |
-| `/config/sport-types` | absent | chainup sport-type catalog from `kv_config[tag.types]` |
-| `/sports` / `/sports/market-types` / `/teams` | present | not in `gamma-service` router; chainup uses `/games*` and `/sports-events` instead |
-| `/public-profile` shape | trader-statistics payload | chainup returns a small profile block (no PnL — that lives in `data-service`) |
+| `Event.titleTranslation` / `Market.questionTranslation` / `Market.outcomeTranslation` | absent | i18n payload (multi-language JSON string) |
+| `Market.adjudication` | absent | UMA oracle lifecycle state + `nextSteps`, `questionId`, `adapterAddress` for the user-dapp dispute flow |
+| `Market.sportPlayType` / `Market.adapterInstance` | absent | tenant-routing fields for the relayer |
+| `/markets/information` body | exhaustive Polymarket filter | accepts a free-form JSON shape (`gamma-service` `MarketsInformationBody`); fields like `negRiskOther`, `rfqEnabled`, etc. do not exist here |
+| `/curation/events` | absent | per-tenant featured / hero / highlight catalog |
+| `/public-info` | absent | tenant brand + chain config + contract addresses |
+| `/agreements` | absent | tenant agreements polling endpoint |
+| `/config/sport-types` | absent | sport-type catalog from `kv_config[tag.types]` |
+| `/sports` / `/sports/market-types` / `/teams` | present | not in `gamma-service` router; uses `/games*` and `/sports-events` instead |
+| `/public-profile` shape | trader-statistics payload | returns a small profile block (no PnL — that lives in `data-service`) |
 | `Comment.parentEntityType` values | mixed-case | `"Event"`, `"Market"`, `"Series"` (case-sensitive on the server — match exactly) |
 | `Market.clob_token_ids` | JSON array of decimal strings | same JSON-array-string format; helper `Market::parsed_clob_token_ids` parses it |
 

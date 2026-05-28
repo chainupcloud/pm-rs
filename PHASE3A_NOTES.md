@@ -1,6 +1,6 @@
 # Phase 3a — Gamma client (notes)
 
-Branch: `feat/phase3-gamma`. SDK + CLI implementation of the chainup
+Branch: `feat/phase3-gamma`. SDK + CLI implementation of the
 `gamma-service` REST API. Source of truth: `pm-cup2026/services/gamma-service`
 (openapi + Go handlers + `internal/models/models.go`).
 
@@ -94,9 +94,9 @@ pm gamma curation events  [--featured-level N]
 
 - `POST /profiles` — Bearer-JWT-authenticated; Phase 2 owns the auth flow.
 - `POST /disputes/evidence` — write endpoint; defer to Phase 3b (or a dedicated dispute module).
-- `/games*`, `/sports-events`, `/disputes/evidence` — present in the router but not in the openapi; chainup-specific shapes for the user-dapp. SDK-side wrapping is straightforward but produced no caller demand for Phase 3a. Document in `docs/gamma.md` so a Phase 3b ticket can pick them up.
-- Polymarket-only endpoints (`/teams`, `/sports`, `/sports/market-types`) — not present in chainup `gamma-service`. Dropped from the CLI per the task brief.
-- Gamma streaming — chainup is REST-only.
+- `/games*`, `/sports-events`, `/disputes/evidence` — present in the router but not in the openapi; tenant-specific shapes for the user-dapp. SDK-side wrapping is straightforward but produced no caller demand for Phase 3a. Document in `docs/gamma.md` so a Phase 3b ticket can pick them up.
+- Polymarket-only endpoints (`/teams`, `/sports`, `/sports/market-types`) — not present in the `gamma-service`. Dropped from the CLI per the task brief.
+- Gamma streaming — REST-only; no streaming variant.
 
 ## Test summary
 
@@ -119,6 +119,6 @@ when run manually against the live `https://gamma-api.hermestrade.xyz` deploymen
 
 1. **`POST /markets/information`** body is `serde_json::Value` rather than a typed `MarketsInformationBody`. The server accepts a free-form JSON shape and the field semantics differ from Polymarket; we documented the accepted keys in the SDK doc-comment but did not produce a typed wrapper to keep this PR small. A typed `MarketsInformationBody` is a one-evening follow-up if a caller wants it.
 2. **`Event.category`** is currently typed as `Option<String>` to match the Go `*string` shape, but the live server appears to also return integer-stringified values (e.g. `"0"`). serde-`Option<String>` deserialises both fine; if a future server change emits a bare integer we will need a `serde_with::PickFirst<...>` shim.
-3. **Auth headers**: `GammaClient` adds no auth headers. The Gamma write endpoints (`POST /auth/login`, `POST /auth/refresh`, `POST /profiles`) require Bearer JWT — Phase 2 will wire that through the shared `Credentials` plumbing. The current sub-client only exposes read endpoints, which are unauthenticated on chainup.
-4. **CLI auto-detection of numeric vs slug** uses `chars().all(is_ascii_digit)`. This is correct for the chainup data shape (all IDs are pure integers) but would mis-detect a hypothetical numeric slug. The server also offers an explicit `/slug/{slug}` path so callers can disambiguate by passing a slug that contains a hyphen.
+3. **Auth headers**: `GammaClient` adds no auth headers. The Gamma write endpoints (`POST /auth/login`, `POST /auth/refresh`, `POST /profiles`) require Bearer JWT — Phase 2 will wire that through the shared `Credentials` plumbing. The current sub-client only exposes read endpoints, which are unauthenticated.
+4. **CLI auto-detection of numeric vs slug** uses `chars().all(is_ascii_digit)`. This is correct for the current data shape (all IDs are pure integers) but would mis-detect a hypothetical numeric slug. The server also offers an explicit `/slug/{slug}` path so callers can disambiguate by passing a slug that contains a hyphen.
 5. **`Adjudication.payoutVector`** is the JSON-array string `[1,0]` or `[0,1]` — we surface it as `Option<String>` and leave parsing to the caller. A typed `Vec<i32>` would only need a `serde_json::from_str` helper similar to `Market::parsed_clob_token_ids`.

@@ -323,7 +323,7 @@ fn effective_chain_id(args: &Cli) -> anyhow::Result<Option<u64>> {
 }
 
 /// Resolve the EIP-712 signature type for the current invocation. Order: global flag /
-/// env > stored `config.toml` > default `gnosis-safe` (chainup's standard Safe-wallet flow).
+/// env > stored `config.toml` > default `gnosis-safe` (Safe-wallet flow).
 pub(crate) fn effective_signature_type(
     args: &Cli,
 ) -> anyhow::Result<pm_rs_clob_client::types::SignatureType> {

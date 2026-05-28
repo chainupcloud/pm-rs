@@ -36,7 +36,7 @@ pub struct StoredConfig {
     /// One of `eoa` / `proxy` / `gnosis-safe` (matches the `SignatureTypeArg` clap value).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signature_type: Option<String>,
-    /// Safe wallet (`bytes20` hex). Required by chainup's default `signatureType=gnosis-safe`
+    /// Safe wallet (`bytes20` hex). Required by default `signatureType=gnosis-safe`
     /// flows since the Safe — not the EOA — holds USDC / CTF balances. Populate via
     /// `pm wallet set-safe <addr>` (manual) or `pm wallet detect-safe` (one server call).
     #[serde(default, skip_serializing_if = "Option::is_none")]

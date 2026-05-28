@@ -1,6 +1,6 @@
 # pm-cli (`pm`)
 
-Terminal client for ChainUp's [`pm-cup2026`](https://github.com/chainupcloud/pm-cup2026) prediction-market platform. Browse markets, place orders, manage positions — counterpart of Polymarket's [`polymarket-cli`](https://github.com/Polymarket/polymarket-cli), with feature parity for everything chainup's backend exposes (see [Non-goals](#non-goals) for what it deliberately skips).
+Terminal client for [`pm-cup2026`](https://github.com/chainupcloud/pm-cup2026) prediction-market platform. Browse markets, place orders, manage positions — counterpart of Polymarket's [`polymarket-cli`](https://github.com/Polymarket/polymarket-cli), with feature parity for everything the backend exposes (see [Non-goals](#non-goals) for what it deliberately skips).
 
 ```bash
 $ pm --tenant hermestrade.xyz time
@@ -43,7 +43,7 @@ pm --tenant hermestrade.xyz gamma events get how-many-fed-rate-cuts-in-2026-pm-4
 Or supply the CLOB URL directly (useful for non-canonical hostnames or local dev):
 
 ```bash
-pm --clob-endpoint https://clob-api.predict.prax1s.xyz time
+pm --clob-endpoint https://clob-api.hermestrade.xyz time
 ```
 
 JSON for scripts:
@@ -97,7 +97,7 @@ Empty values are treated as unset.
 |-------|------|----------|
 | `eoa` | 0 — direct EOA signing | Funds held in the same EOA that signs. Polymarket-style trading wallet. |
 | `proxy` | 1 — Polymarket proxy wallet | Legacy / interop. |
-| `gnosis-safe` (**default**) | 2 — 1-of-1 Gnosis Safe | **chainup default.** EOA signs; the Safe is the `maker` and holds the funds. |
+| `gnosis-safe` (**default**) | 2 — 1-of-1 Gnosis Safe | **Default.** EOA signs; the Safe is the `maker` and holds the funds. |
 
 The default is `gnosis-safe`. Persist a different choice with `pm wallet create --signature-type eoa`, or override per-invocation via `--signature-type <eoa|proxy|gnosis-safe>` / `PM_SIGNATURE_TYPE`.
 
@@ -160,7 +160,7 @@ pm gamma profiles get <SAFE_ADDRESS>
 pm gamma tags list
 ```
 
-Chainup's Gamma is REST-only; there is no streaming variant.
+Gamma is REST-only; there is no streaming variant.
 
 ### Wallet
 
@@ -198,7 +198,7 @@ pm order create --token <T> --side buy --price 0.10 --size 5 \
                 --fee-rate-bps 20 --maker <SAFE> \
                 --order-type gtd --expiration $(( $(date +%s) + 600 ))
 
-# Market order (BUY only — amount denominated in USDW; chainup runs the book walk)
+# Market order (BUY only — amount denominated in USDW; server runs the book walk)
 pm order create --token <T> --side buy --amount 3.75 --price 0.75 \
                 --fee-rate-bps 20 --maker <SAFE> --market
 
@@ -247,7 +247,7 @@ pm heartbeat                                  # server-side liveness ping
 # Read-only — query allowance / setApprovalForAll status for every YAML target.
 pm approve check --network-config examples/networks/monad-hermestrade.yaml
 
-# Write — issue approvals via Safe meta-tx through the chainup relayer.
+# Write — issue approvals via Safe meta-tx through the relayer.
 # Defaults to dry-run (signs locally + prints the SubmitRequest, never POSTs).
 pm approve set --network-config examples/networks/monad-hermestrade.yaml
 
@@ -292,7 +292,7 @@ Connection state survives transient disconnects — the SDK auto-reconnects and 
 
 ### Conditional Token Framework
 
-Helpers for the Gnosis CTF protocol the markets settle on. Mixes pure off-chain calculations, a JSON-RPC fallback for the EC-heavy collection-id, and Safe-mode writes through the chainup relayer.
+Helpers for the Gnosis CTF protocol the markets settle on. Mixes pure off-chain calculations, a JSON-RPC fallback for the EC-heavy collection-id, and Safe-mode writes through the relayer.
 
 ```bash
 # Pure off-chain — no RPC, no signer
@@ -343,7 +343,7 @@ pm balance --asset-type collateral
 pm approve check --network-config examples/networks/monad-hermestrade.yaml
 
 # 3. If approvals are missing, batch USDW.approve + CTF.setApprovalForAll in
-#    ONE Safe meta-tx via the chainup relayer (relayer pays gas, you pay 0 USDW).
+#    ONE Safe meta-tx via the relayer (relayer pays gas, you pay 0 USDW).
 pm approve set --network-config examples/networks/monad-hermestrade.yaml --execute
 
 # (Optional) If you plan to use `pm ctf split/merge`, also approve the
@@ -395,21 +395,21 @@ pm order create ...
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
 | `ORDER_SIZE_TOO_SMALL: limit order requires share >= 5` | Order size below the 5-share minimum. | Increase to ≥ 5, even if the per-share price is low. |
-| `size 0.66… has 28 decimals; chainup lot size is 2` | Market `--amount / --price` didn't round to 0.01. | Pick `amount` so `amount / price` is a multiple of 0.01. |
+| `size 0.66… has 28 decimals; lot size is 2` | Market `--amount / --price` didn't round to 0.01. | Pick `amount` so `amount / price` is a multiple of 0.01. |
 | `unknown variant 'MATCHED' / 'cancelled'` from `pm ws user` | Pre-`60904cc` build. | `git pull && cargo build`. |
 | `proxy_wallet` differs between API keys | Server returns the proxy from the first key created with a given scope. | Use `pm wallet set-safe <addr>` manually or filter by `--api-key` in code. |
 | TLS handshake panic on startup | rustls 0.23 missing crypto provider. | Already fixed in `ee4eec2`. Pull latest. |
-| `/heartbeat` returns empty body | Known minor: chainup may return `{}` rather than `{status: ok}`. Functional, just visually empty. | — |
+| `/heartbeat` returns empty body | Known minor: server may return `{}` rather than `{status: ok}`. Functional, just visually empty. | — |
 
 ## Non-goals
 
-Commands intentionally omitted because chainup's backend doesn't expose the underlying endpoint, or because the equivalent is provided through a different surface:
+Commands intentionally omitted because the backend doesn't expose the underlying endpoint, or because the equivalent is provided through a different surface:
 
-- **Market browsing** — `markets list / get / sampling-markets / simplified-markets`. Chainup pushes discovery through Gamma instead (`pm gamma events …`).
-- **Polymarket rewards** — `rewards list / earnings / reward-percentages / current-rewards / orders-scoring`. Chainup tenants run their own incentive logic.
+- **Market browsing** — `markets list / get / sampling-markets / simplified-markets`. Discovery is pushed through Gamma instead (`pm gamma events …`).
+- **Polymarket rewards** — `rewards list / earnings / reward-percentages / current-rewards / orders-scoring`. Tenants run their own incentive logic.
 - **Notifications + account state** — `notifications / closed-only-mode / account-status / geoblock / neg-risk` (the neg-risk flag is embedded in the `/book` response).
-- **`bridge`, `rtds`, `rfq`** — Polymarket-proprietary endpoints not present on chainup.
-- **EOA-broadcast `ctf` writes** — Polymarket V1 broadcasts `splitPosition / mergePositions / redeemPositions` directly from the EOA. chainup only supports `signatureType=2` (Safe), so `pm ctf {split,merge,redeem}` instead routes through the chainup `relayer-service` (Safe meta-tx). Same functional outcome, different wire path.
+- **`bridge`, `rtds`, `rfq`** — Polymarket-proprietary endpoints not present on this platform.
+- **EOA-broadcast `ctf` writes** — Polymarket V1 broadcasts `splitPosition / mergePositions / redeemPositions` directly from the EOA. Only `signatureType=2` (Safe) is supported, so `pm ctf {split,merge,redeem}` instead routes through the `relayer-service` (Safe meta-tx). Same functional outcome, different wire path.
 - **`upgrade`** — on the roadmap; not yet shipped.
 
 ## Output formats

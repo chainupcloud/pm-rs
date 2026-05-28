@@ -1,7 +1,7 @@
 //! End-to-end auth-flow integration tests using a mocked HTTP server.
 //!
 //! These tests exercise the [`Client`] L1 / L2 paths against a [`wiremock::MockServer`] and
-//! assert that the on-wire headers match what the chainup CLOB server expects to receive.
+//! assert that the on-wire headers match what the CLOB server expects to receive.
 //!
 //! The point is NOT to re-verify the cryptographic primitives (golden_signer.rs does that)
 //! but to confirm:
@@ -83,7 +83,7 @@ fn assert_l2_headers(req: &Request, expected_path: &str) {
         .unwrap();
     let method_str = req.method.as_str();
     let body_str = std::str::from_utf8(&req.body).unwrap_or_default();
-    // The chainup HMAC is computed over the PATH ONLY (no query string).
+    // The HMAC is computed over the PATH ONLY (no query string).
     let expected_sig = compute_l2_hmac(TEST_SECRET, ts, method_str, expected_path, body_str);
     assert_eq!(
         sig, expected_sig,

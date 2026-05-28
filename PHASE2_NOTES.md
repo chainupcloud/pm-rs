@@ -24,7 +24,7 @@ Branch: `feat/phase2-auth`. Three commits, all tests passing per commit (Phase 1
 - `pm_rs_clob_client::Credentials` (already existed in Phase 1; now actually used).
 - `pm_rs_clob_client::PMCup26Signer` (re-export of the existing signer struct for ergonomic L1 calls).
 - `pm_rs_clob_client::AssetType` — enum `{ Collateral, Conditional }`, serialises to `"COLLATERAL"` / `"CONDITIONAL"` matching the server's `c.Query("asset_type")` check.
-- `pm_rs_clob_client::ApiKeyInfo` — response shape for `/auth/api-keys`, includes the chainup-specific `proxy_wallet` field.
+- `pm_rs_clob_client::ApiKeyInfo` — response shape for `/auth/api-keys`, includes the `proxy_wallet` field.
 - `pm_rs_clob_client::BalanceAllowanceResponse` — response shape for `/balance-allowance`, includes the optional `virtual_available` / `locked` fields the server adds when the virtual-balance manager is enabled.
 
 ## New public helpers in `pm_rs_clob_client::auth`
@@ -84,7 +84,7 @@ Branch: `feat/phase2-auth`. Three commits, all tests passing per commit (Phase 1
 2. **No live smoke-test of `DELETE /auth/api-key`.** The CI / dev clob-api endpoint is shared and revoking a real key would disrupt other developers. The wiremock-backed integration test verifies the wire contract; pre-merge, the orchestrator should do a one-off `pm auth create-key` → `pm auth list-keys` → `pm auth delete-key` against a throwaway scope on the dev environment.
 3. **`AssetType` validation is duplicated on client + server.** The SDK rejects `Collateral + token_id` and `Conditional` without token up front (matching `handlers.go:1505-1517`). Saves a round-trip; if the server contract ever relaxes, the SDK rule is the bottleneck.
 4. **No client-side Safe-address derivation.** Phase 2.1 lets the server do the derivation. If callers want to verify the Safe address before depositing, Phase 2.2 should add `signer::derive_safe_address(eoa, scope_id, factory_contract_addr, master_copy, proxy_creation_code)` — see the analysis in `clob-service/CLAUDE.md` "Safe 钱包架构" section.
-5. **`create_or_derive_api_key` fallback runs on any `Error::Api` (any HTTP status error).** Polymarket V1 narrows the fallback to `ErrorKind::Status`. Our chainup `Error` is flatter (`Api { status, ... }`) so we accept that any 4xx triggers fallback. The server's behaviour on duplicate-create is "return existing creds with 200" (see `handlers/auth.go:139`), so in practice the fallback only runs on truly unexpected codes. Not a problem in any scenario we can identify; flagging for awareness.
+5. **`create_or_derive_api_key` fallback runs on any `Error::Api` (any HTTP status error).** Polymarket V1 narrows the fallback to `ErrorKind::Status`. The `Error` type here is flatter (`Api { status, ... }`) so we accept that any 4xx triggers fallback. The server's behaviour on duplicate-create is "return existing creds with 200" (see `handlers/auth.go:139`), so in practice the fallback only runs on truly unexpected codes. Not a problem in any scenario we can identify; flagging for awareness.
 
 ## Files changed / added (top-level)
 

@@ -1,8 +1,8 @@
-//! [`ClobWebSocketClient`] — entry point for the two chainup WS channels.
+//! [`ClobWebSocketClient`] — entry point for the two WS channels.
 //!
 //! Construct via [`crate::Client::clob_ws`]; that method validates the parent
 //! client has a WS endpoint configured. The two `subscribe_*` methods each
-//! dial a fresh socket — chainup runs both channels on `:8082` but at
+//! dial a fresh socket — both channels run on `:8082` but at
 //! different paths (`/ws/market` vs `/ws/user`).
 
 use std::pin::Pin;
@@ -138,7 +138,7 @@ impl ClobWebSocketClient {
     /// Convenience: connect, send one `PING`, await `PONG`, disconnect.
     ///
     /// Returns `Ok(())` if the server accepts the upgrade within `timeout`
-    /// (the chainup server's response to `"PING"` is the text frame `"PONG"`,
+    /// (the server's response to `"PING"` is the text frame `"PONG"`,
     /// which the connection task swallows; absence of a transport error
     /// within ~200 ms after the PING is treated as success). Used by
     /// `pm ws ping`.

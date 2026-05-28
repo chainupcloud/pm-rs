@@ -1,4 +1,4 @@
-//! Request / response types for the chainup `relayer-service` REST API.
+//! Request / response types for the `relayer-service` REST API.
 //!
 //! Field names and JSON tags mirror `pm-cup2026/services/relayer-service/pkg/types/types.go`
 //! 1:1 (camelCase wire format).
@@ -190,7 +190,7 @@ mod tests {
     fn safe_tx_params_camelcase_round_trip() {
         let p = SafeTxParams::relayer_pays(true);
         let json = serde_json::to_string(&p).unwrap();
-        // Note `safeTxnGas` (typo present on the server side — chainup's Go struct).
+        // Note `safeTxnGas` (typo present on the server side — the Go struct spelling).
         assert!(json.contains("\"safeTxnGas\":\"0\""));
         assert!(json.contains("\"operation\":\"1\""));
         let back: SafeTxParams = serde_json::from_str(&json).unwrap();

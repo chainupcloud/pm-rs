@@ -3,11 +3,11 @@
 //! - `check` reads `IERC20.allowance(owner, spender)` and `IERC1155.isApprovedForAll`
 //!   per the tenant YAML's approval targets. No on-chain writes.
 //! - `set` writes `usdw.approve(spender, amount)` through the user's Safe, using the
-//!   chainup `relayer-service` to pay gas. Defaults to dry-run; `--execute` actually
-//!   submits. Safe-mode (`signatureType=2`) only — chainup does not support EOA mode.
+//!   `relayer-service` to pay gas. Defaults to dry-run; `--execute` actually
+//!   submits. Safe-mode (`signatureType=2`) only — EOA mode is not supported.
 //!
 //! `owner` for `check` defaults to the EOA derived from the configured wallet, but
-//! **chainup users by default trade through a Safe** (signatureType=2). The Safe is the
+//! **users by default trade through a Safe** (signatureType=2). The Safe is the
 //! address holding USDW and CTF balances. Pass `--address <safe>` when checking a Safe
 //! owner — for `set`, the Safe address comes from the local config and the EOA is the
 //! Safe owner that signs the `SafeTx` EIP-712 payload.
@@ -47,7 +47,7 @@ pub enum ApproveCommand {
     /// Read `USDW.allowance(owner, target)` and `CTF.isApprovedForAll(owner, target)` for
     /// each tenant approval target. No on-chain writes.
     Check(CheckArgs),
-    /// Safe-mode `usdw.approve(spender, amount)` via the chainup relayer-service. Default
+    /// Safe-mode `usdw.approve(spender, amount)` via the relayer-service. Default
     /// dry-run; pass `--execute` to submit. Single op when `--spender` is provided, else
     /// batches every entry in the YAML's `approval_targets()` via MultiSend.
     Set(SetArgs),
@@ -59,7 +59,7 @@ pub struct CheckArgs {
     #[arg(long)]
     pub network_config: String,
     /// Owner address to check. Defaults to the EOA from the configured wallet.
-    /// **For Safe-wallet users (`signatureType=2`, chainup default) you must pass the Safe
+    /// **For Safe-wallet users (`signatureType=2`, default) you must pass the Safe
     /// address explicitly here** — the EOA holds no funds and its allowance is always zero.
     #[arg(long)]
     pub address: Option<String>,
@@ -75,7 +75,7 @@ pub enum AssetSet {
     /// Only `CTF.setApprovalForAll(operator, true)` ops.
     Ctf,
     /// Both USDW.approve and CTF.setApprovalForAll for every target — what a fresh
-    /// wallet needs to fully trade on chainup. Matches polymarket-V1's `set` defaults.
+    /// wallet needs to fully trade. Matches polymarket-V1's `set` defaults.
     All,
 }
 
@@ -141,7 +141,7 @@ async fn run_check(args: &Cli, a: &CheckArgs, fmt: Format) -> Result<()> {
     let collateral_addr = parse_addr(collateral)
         .with_context(|| format!("invalid collateral address '{collateral}'"))?;
     // Prefer the explicit `conditional_tokens` field when set; fall back to `ctf_exchange`
-    // for backward compatibility with older YAMLs (and chainup Monad where the two are the
+    // for backward compatibility with older YAMLs (and Monad where the two are the
     // same contract).
     let ctf_source = cfg
         .contracts
@@ -229,7 +229,7 @@ fn resolve_owner(args: &Cli, override_address: Option<&str>) -> Result<Address> 
         .ok_or_else(|| {
             anyhow!(
                 "owner unresolved: signature_type={sig_type:?} needs a Safe address. Either:\n\
-                 - run `pm wallet detect-safe` (fetches it from the chainup server, requires L2 creds), or\n\
+                 - run `pm wallet detect-safe` (fetches it from the server, requires L2 creds), or\n\
                  - run `pm wallet set-safe <addr>` (paste it yourself), or\n\
                  - pass `--address <addr>` explicitly, or\n\
                  - re-run with `--signature-type eoa` to check the EOA instead."
@@ -606,7 +606,7 @@ mod tests {
     fn require_conditional_tokens_returns_yaml_address() {
         let cfg = network_config::load("../examples/networks/monad-hermestrade.yaml").unwrap();
         let addr = require_conditional_tokens(&cfg).unwrap();
-        // The chainup Monad ConditionalTokens contract sourced from gamma /public-info.
+        // The Monad ConditionalTokens contract sourced from gamma /public-info.
         assert_eq!(
             format!("{addr:?}").to_lowercase(),
             "0xd77d550092ab455bd1b9071e4185ecbb6e8d6a2a"

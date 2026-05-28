@@ -5,10 +5,10 @@ use clap::{Parser, Subcommand, ValueEnum};
 use crate::output::Format;
 
 #[derive(Debug, Parser)]
-#[command(name = "pm", version, about = "ChainUp pm-cup2026 terminal client", long_about = None)]
+#[command(name = "pm", version, about = "pm-cup2026 terminal client", long_about = None)]
 pub struct Cli {
     /// Tenant root host. The CLOB / Gamma / WebSocket endpoints are derived using the canonical
-    /// chainup subdomain pattern (`clob-api.<host>` / `gamma-api.<host>` / `clob-ws.<host>`).
+    /// canonical subdomain pattern (`clob-api.<host>` / `gamma-api.<host>` / `clob-ws.<host>`).
     /// Either this OR `--clob-endpoint` must be supplied — they are mutually exclusive.
     #[arg(long, global = true, env = "PM_TENANT", conflicts_with = "clob_endpoint")]
     pub tenant: Option<String>,
@@ -48,7 +48,7 @@ pub struct Cli {
     pub config_dir: Option<String>,
 
     /// Global EIP-712 signature type (`eoa` / `proxy` / `gnosis-safe`). Defaults to
-    /// `gnosis-safe` — chainup's Safe-wallet flow where the EOA signs but the Safe holds
+    /// `gnosis-safe` — Safe-wallet flow where the EOA signs but the Safe holds
     /// funds and is the `maker`. Persisted by `pm wallet create / import / set-safe`;
     /// the flag overrides the stored value for the current invocation only.
     #[arg(long, global = true, env = "PM_SIGNATURE_TYPE")]
@@ -110,7 +110,7 @@ pub enum Command {
     Endpoints,
     /// Gamma metadata API (events / markets / tags / series / comments / profiles / search).
     Gamma(crate::gamma_commands::GammaArgs),
-    /// Data API (portfolio / trades / activity / leaderboards) — wraps chainup `data-service`.
+    /// Data API (portfolio / trades / activity / leaderboards) — wraps `data-service`.
     Data(crate::data_commands::DataArgs),
     /// L1 / L2 authentication: API-key management.
     #[command(subcommand)]
@@ -136,11 +136,11 @@ pub enum Command {
     /// `pm <args>` invocation; env vars / config-file state apply per line.
     Shell,
     /// Guided first-time setup wizard (wallet + tenant + Safe + L2 API key).
-    /// Mirrors `polymarket setup`, adapted for chainup's multi-tenant topology.
+    /// Mirrors `polymarket setup`, adapted for multi-tenant topology.
     Setup,
     /// Conditional Token Framework helpers — pure off-chain ID calculations
     /// (`condition-id` / `position-id`), RPC-backed `collection-id`, and Safe-mode
-    /// on-chain writes (`redeem` / `split` / `merge`) via the chainup relayer.
+    /// on-chain writes (`redeem` / `split` / `merge`) via the relayer.
     Ctf(crate::ctf_commands::CtfArgs),
 }
 
@@ -208,7 +208,7 @@ pub enum AuthCommand {
     DeriveKey(DeriveKeyArgs),
     /// `DELETE /auth/api-key` — revoke the L2 key for `(signer, scope, nonce)`.
     DeleteKey(DeleteKeyArgs),
-    /// `GET /auth/api-keys` — list active API keys + chainup `proxy_wallet` (L2-auth).
+    /// `GET /auth/api-keys` — list active API keys + `proxy_wallet` (L2-auth).
     ListKeys,
 }
 
@@ -258,7 +258,7 @@ pub enum SignatureTypeArg {
     Eoa,
     /// signatureType=1 — Polymarket proxy wallet.
     Proxy,
-    /// signatureType=2 — Gnosis Safe (1-of-1) — chainup default.
+    /// signatureType=2 — Gnosis Safe (1-of-1) — default.
     GnosisSafe,
 }
 
@@ -312,7 +312,7 @@ pub struct PricesBatchArgs {
 #[derive(Debug, clap::Args)]
 pub struct PriceHistoryArgs {
     pub token_id: String,
-    /// Interval bucket size — chainup-flavored. No `1m` minute granularity.
+    /// Interval bucket size. No `1m` minute granularity.
     #[arg(long, value_enum, default_value = "1d")]
     pub interval: PriceHistoryIntervalArg,
     /// Optional override on the server's default samples-per-bucket (minutes per point).

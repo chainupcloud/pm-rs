@@ -24,7 +24,7 @@ Last updated: 2026-05-19 (Phase 2.2: order construction / signing / placement / 
 |-----------|---------------|-------|
 | Default chain | Polygon (chainId 137) | OP Sepolia (chainId 11155420) |
 | Supported chains | Polygon + Amoy (hard-coded `phf::Map`) | **Any configurable EVM** (Monad / OP Sepolia / custom); hard-coding is forbidden |
-| Default REST endpoint | `https://clob.polymarket.com` | `https://clob-api.predict.prax1s.xyz` (dev); production hostnames come from tenant config |
+| Default REST endpoint | `https://clob.polymarket.com` | `https://clob-api.hermestrade.xyz`; hostnames come from tenant config |
 | Collateral | USDC.e (`0x2791…4174`) | USDC (contract address confirmed on-chain, injected via config) |
 | Gas token | MATIC (Polygon) | Chain-dependent (OP Sepolia: ETH; Monad: MON) |
 | Source of contract addresses | `phf_map!` in `lib.rs` (static table) | Runtime configuration (`Config` / CLI flag / env) — **not in `lib.rs`** |
@@ -66,7 +66,7 @@ Last updated: 2026-05-19 (Phase 2.2: order construction / signing / placement / 
 |-------|---------------|-------|
 | 0 | `Eoa` | `Eoa` (same) |
 | 1 | `Proxy` (Magic / email) | `PolyProxy` (same semantics) |
-| 2 | `GnosisSafe` (browser wallet) | `PolyGnosisSafe` (**chainup default**, used by the Safe-wallet architecture) |
+| 2 | `GnosisSafe` (browser wallet) | `PolyGnosisSafe` (**default**, used by the Safe-wallet architecture) |
 | 3 | — (V2 introduces `Poly1271`; V1 has none) | — |
 
 > `pm-cup2026` users default to the Safe wallet flow: `maker = Safe address`, `signer = EOA`, `signatureType = 2`.
@@ -102,10 +102,10 @@ Last updated: 2026-05-19 (Phase 2.2: order construction / signing / placement / 
 | `GET /auth/api-keys` | Lists API keys for the address | Also returns `proxy_wallet` (Safe address) |
 | `GET /builder/trades` | Standard Polymarket Builder flow | `Client::builder_trades` exposes the L2-auth query path; the V1 `BuilderConfig::remote` remote-signer for `POST` paths is NOT implemented (Phase 4+). |
 | `POST /order` / `POST /orders` / `POST /orders/replace` | V1: built into `Client::post_order` / `post_orders` / `replace_order`. | Same surface (`Client::post_order` / `post_orders` / `replace_order`) — JSON shape matches `handlers.orderJSON` (camelCase `tokenID` / `makerAmount` / `feeRateBps` / `signatureType` / `scopeId`; `signatureType` as numeric **string**; salt as decimal string). |
-| `DELETE /order` / `DELETE /orders` / `DELETE /cancel-all` / `DELETE /cancel-market-orders` | V1: `cancel_order` / `cancel_orders` / `cancel_all` / `cancel_market_orders`. | Same — chainup `DELETE /orders` accepts both `["id"...]` (preferred) and `{"orderIDs": [...]}` per openapi; SDK sends the bare array form. |
-| `GET /orders` / `GET /order/{id}` | V1: paginated `next_cursor` | Same envelope shape (`{limit, count, next_cursor, data}`); `next_cursor == "LTE="` signals end. chainup-specific `lazy` field surfaced in `OpenOrderResponse`. |
-| `GET /trades` | V1: `before`/`after` filters | chainup adds `from_id` (snowflake ASC cursor) + `limit ∈ [1, 1000]`; SDK supports the full filter matrix and auto-fills `maker_address` from the configured L2 signer. |
-| `POST /self-trade` | — | **chainup-only** (internal port `:8083`, used for market-maker price-history backfill / mirroring) |
+| `DELETE /order` / `DELETE /orders` / `DELETE /cancel-all` / `DELETE /cancel-market-orders` | V1: `cancel_order` / `cancel_orders` / `cancel_all` / `cancel_market_orders`. | Same — `DELETE /orders` accepts both `["id"...]` (preferred) and `{"orderIDs": [...]}` per openapi; SDK sends the bare array form. |
+| `GET /orders` / `GET /order/{id}` | V1: paginated `next_cursor` | Same envelope shape (`{limit, count, next_cursor, data}`); `next_cursor == "LTE="` signals end. Platform-specific `lazy` field surfaced in `OpenOrderResponse`. |
+| `GET /trades` | V1: `before`/`after` filters | Adds `from_id` (snowflake ASC cursor) + `limit ∈ [1, 1000]`; SDK supports the full filter matrix and auto-fills `maker_address` from the configured L2 signer. |
+| `POST /self-trade` | — | **Platform-only** (internal port `:8083`, used for market-maker price-history backfill / mirroring) |
 
 ### V1 endpoints `pm-rs` will not implement
 
@@ -115,36 +115,36 @@ Last updated: 2026-05-19 (Phase 2.2: order construction / signing / placement / 
 | `data` (on-chain data aggregator) | `pm-cup2026` uses its own subgraph, different protocol |
 | `rtds` (real-time data stream) | Polymarket proprietary |
 | `rfq` (request for quote) | Polymarket proprietary |
-| `ctf` (EOA-broadcast split / merge / redeem) | chainup only supports Safe-mode writes (`signatureType=2`). The CLI ships `pm ctf split / merge / redeem` against the chainup `relayer-service` (Safe meta-tx), but the EOA-direct broadcast variant Polymarket V1 ships is intentionally not provided. |
+| `ctf` (EOA-broadcast split / merge / redeem) | Only Safe-mode writes are supported (`signatureType=2`). The CLI ships `pm ctf split / merge / redeem` against the `relayer-service` (Safe meta-tx), but the EOA-direct broadcast variant Polymarket V1 ships is intentionally not provided. |
 | `gamma` streaming | `pm-cup2026` `gamma-service` is REST-only; no stream. REST surface implemented in Phase 3a — see [`docs/gamma.md`](gamma.md). |
 
-### Polymarket V1 CLOB endpoints NOT in chainup `clob-service` (verified 2026-05-19)
+### Polymarket V1 CLOB endpoints not in `clob-service` (verified 2026-05-19)
 
 Cross-checked against `pm-cup2026/services/clob-service/internal/tradingapi/server.go`. These will not be implemented unless the backend later adds them.
 
-| Polymarket V1 endpoint | Chainup status | Notes |
-|------------------------|----------------|-------|
+| Polymarket V1 endpoint | Status | Notes |
+|------------------------|--------|-------|
 | `GET /markets` (paginated CLOB market list) | absent | Market discovery happens through Gamma (`/events`, `/markets`); CLOB exposes per-token reads only. |
 | `GET /market/{condition_id}` | absent | Same — use Gamma `markets/{id}` or `markets/slug/{slug}` instead. |
 | `GET /sampling-markets` / `/simplified-markets` / `/sampling-simplified-markets` | absent | Reward-program filters; no equivalent. |
 | `GET /all-prices` | absent | No tenant-wide enumeration; callers should `POST /prices` with their token list. |
 | `GET /neg-risk` (standalone) | absent (partial) | Neg-risk flag is returned **inside** the `/book` response, not exposed as its own endpoint. |
-| `GET /geoblock` | absent | No geolocation middleware on chainup. |
-| `GET /closed-only-mode` / `GET /account-status` | absent | No account-state introspection on chainup. |
+| `GET /geoblock` | absent | No geolocation middleware. |
+| `GET /closed-only-mode` / `GET /account-status` | absent | No account-state introspection. |
 | `GET|DELETE /notifications` | absent | No server-side notification queue. |
 | `GET /rewards` / `GET /earnings/total/{date}` / `GET /earnings/markets/{date}` / `GET /reward-percentages` / `GET /current-rewards` / `GET /rewards/markets/{condition_id}` | absent | Polymarket-affiliate maker-program endpoints; tenants on `pm-cup2026` run their own incentive logic. |
 | `POST /orders-scoring` (batch) | absent | Singular `GET /order-scoring` is supported. |
 
-### Polymarket V1 endpoints that ARE on chainup but use a different verb / shape
+### Polymarket V1 endpoints with a different verb / shape
 
-| Polymarket V1 | Chainup | Notes |
+| Polymarket V1 | pm-rs | Notes |
 |---------------|---------|-------|
 | `GET /midpoints` | `POST /midpoints` (also `GET`) | Batch midpoints. SDK call: `Client::midpoints(&[token_id])`. CLI: `pm midpoints t1 t2 ...`. |
 | `GET /prices` (batch) | `POST /prices` | SDK call: `Client::prices(&[(token, side)])`. CLI: `pm prices t1:buy t2:sell ...`. |
 | `GET /spreads` (batch) | `POST /spreads` | SDK call: `Client::spreads(&[token_id])`. CLI: `pm spreads t1 t2 ...`. |
 | `GET /books` (batch) | `POST /books` | SDK call: `Client::books(&[(token, side)])` → `Vec<Option<OrderBookSummary>>`. CLI: `pm books t1:buy t2:sell ...`. |
 | `GET /last-trades-prices` | `GET|POST /last-trades-prices` | Both verbs accepted; SDK sends POST. SDK call: `Client::last_trades_prices(&[token_id])` (capped at 500 client-side). CLI: `pm last-trades t1 t2 ...`. |
-| `GET /price-history?fidelity=...` | `GET /price-history?interval=...` | Chainup intervals: `1H | 6H | 1D | 1W | 1M | ALL`. **No `1m` minute granularity.** SDK call: `Client::price_history(token_id, interval, fidelity, limit)`. CLI: `pm price-history <token> --interval 1h`. |
+| `GET /price-history?fidelity=...` | `GET /price-history?interval=...` | Supported intervals: `1H | 6H | 1D | 1W | 1M | ALL`. **No `1m` minute granularity.** SDK call: `Client::price_history(token_id, interval, fidelity, limit)`. CLI: `pm price-history <token> --interval 1h`. |
 | `POST /balance-allowance/update` | `GET /balance-allowance/update` | Verb difference; SDK already implements via `update_balance_allowance`. |
 
 ---
@@ -161,7 +161,7 @@ Cross-checked against `pm-cup2026/services/clob-service/internal/tradingapi/serv
 | Fee split | Single platform fee | **Split into `PLATFORM_FEE + TENANT_FEE`**, 3 on-chain transactions per side per fill |
 | Salt generation | `(seconds × rand_f64) & (2^53 - 1)` | `time.Now().UnixNano() & (2^53 - 1)` (matches `pm-sdk-go::time.Now().UnixNano()`); pinned via `OrderBuilder::salt(...)` for reproducible signatures |
 | `v` byte normalisation | n/a (V1 path emits {27,28} natively) | `+27` normalisation applied client-side (`normalize_ecdsa_v`); on-chain `ECDSA.recover` requires `{27, 28}`, server-side L2 verifier accepts both |
-| `OrderBuilder` builder-codes / metadata / defer_exec | n/a in V1 | chainup `deferExec` exists in the wire schema but the SDK always sends `false` (Phase 2.2 scope); builder-program codes / metadata are V2-only and explicitly NOT carried |
+| `OrderBuilder` builder-codes / metadata / defer_exec | n/a in V1 | `deferExec` exists in the wire schema but the SDK always sends `false` (Phase 2.2 scope); builder-program codes / metadata are V2-only and explicitly NOT carried |
 
 ---
 
@@ -174,9 +174,9 @@ Cross-checked against `pm-cup2026/services/clob-service/internal/tradingapi/serv
 | AWS KMS signer | Built-in `signer-aws` example | Not implemented (callers can plug in any `alloy::signers::Signer` impl) |
 | Heartbeat long connection | `heartbeats` feature flag | Phase 3 |
 | WebSocket asset-ID type | `Vec<String>` | Same — shipped in Phase 3b (see [`docs/ws.md`](ws.md)) |
-| WebSocket transport | `tokio_tungstenite`, type-state authenticated client | `tokio_tungstenite`, single-state client; auth carried in the first WS frame for the user channel (matches the chainup server contract, **not** HTTP `PRED_*` headers) |
+| WebSocket transport | `tokio_tungstenite`, type-state authenticated client | `tokio_tungstenite`, single-state client; auth carried in the first WS frame for the user channel (matches the server contract, **not** HTTP `PRED_*` headers) |
 | WebSocket subscribe message | Single `SubscriptionRequest` covering both channels | Two distinct envelopes — `MarketSubscribeRequest` (`type=market`, `assets_ids`) and `UserSubscribeRequest` (`type=user`, `auth.{apiKey,passphrase}`, `markets`) |
-| WebSocket heartbeat | Protocol-level Ping | Text frame `"PING"` / `"PONG"` (chainup-specific; see `services/clob-service/internal/wsservice/`) |
+| WebSocket heartbeat | Protocol-level Ping | Text frame `"PING"` / `"PONG"` (see `services/clob-service/internal/wsservice/`) |
 | WebSocket runtime sub/unsub | Per-channel `subscribe` / `unsubscribe` envelopes | Same shape (`{"operation":"subscribe","assets_ids":[...]}` etc.) |
 | WebSocket reconnect | Exponential backoff, re-emits subscriptions | Same |
 | Public utility functions | Private | Phase 3 will expose a `utilities` module, aligned with the V2 SDK's design |
@@ -200,7 +200,7 @@ V2 ideas worth borrowing **selectively** (not adopted wholesale):
 
 - `build_sign_and_post()` one-shot order placement — partial: `OrderBuilder::build_and_sign` + `Client::post_order` are separate calls (caller chooses to compose them).
 - `user_usdc_balance()` market-buy balance auto-adjustment — reassess in Phase 3+.
-- The public `clob::utilities` module — Phase 3 will ship an equivalent with chainup's own fee formulas.
+- The public `clob::utilities` module — Phase 3 will ship an equivalent with the platform's own fee formulas.
 
 ---
 

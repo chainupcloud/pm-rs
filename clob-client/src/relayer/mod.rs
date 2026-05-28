@@ -1,4 +1,4 @@
-//! Chainup `relayer-service` HTTP client. Submits Safe meta-transactions
+//! `relayer-service` HTTP client. Submits Safe meta-transactions
 //! (`Safe.execTransaction` payloads pre-signed by the EOA) and lets the relayer broadcast
 //! them from its gas-key pool.
 //!

@@ -1,4 +1,4 @@
-//! HTTP client for the chainup `data-service` (portfolio / trades / activity / leaderboards).
+//! HTTP client for the `data-service` (portfolio / trades / activity / leaderboards).
 //!
 //! Lives at `data-api.<tenant>`. Public read-only — no L1 / L2 auth required; tenant is
 //! inferred from the HTTP `Host` header. Construct via [`crate::Client::data`]:
@@ -27,9 +27,9 @@ use crate::data::types::{
 };
 use crate::error::{Error, Result};
 
-/// Generic envelope used by chainup for several list endpoints (`positions`, `activity`,
-/// `closed-positions`, `v1/market-positions`). The envelope is a chainup divergence —
-/// polymarket's data-api returns flat arrays — so the SDK transparently unwraps it.
+/// Generic envelope used for several list endpoints (`positions`, `activity`,
+/// `closed-positions`, `v1/market-positions`). The envelope is a divergence from
+/// polymarket's data-api which returns flat arrays — so the SDK transparently unwraps it.
 #[derive(serde::Deserialize)]
 struct DataEnvelope<T> {
     #[serde(default = "Vec::new")]
@@ -62,7 +62,7 @@ impl DataClient {
     // ─── /positions ────────────────────────────────────────────────────────
 
     /// `GET /positions` — open positions for a wallet (Safe / proxy wallet address).
-    /// Chainup wraps the array in `{data: [...]}`; the SDK unwraps it transparently.
+    /// Server wraps the array in `{data: [...]}`; the SDK unwraps it transparently.
     pub async fn positions(
         &self,
         address: &str,
@@ -90,7 +90,7 @@ impl DataClient {
 
     /// `GET /v1/market-positions` — leaderboard-style position list for one market,
     /// grouped by outcome token. Returns one group per token; each group lists the per-trader
-    /// position rows. Wrapped in `{data: [...]}` (chainup envelope). Live wire uses
+    /// position rows. Wrapped in `{data: [...]}` (data envelope). Live wire uses
     /// `market=<conditionId>`, not `conditionId=`.
     pub async fn market_positions(
         &self,
@@ -125,7 +125,7 @@ impl DataClient {
     // ─── /activity ─────────────────────────────────────────────────────────
 
     /// `GET /activity` — on-chain activity (trades + splits + merges + redeems + rewards) for a wallet.
-    /// Wrapped in `{data: [...]}` (chainup divergence).
+    /// Wrapped in `{data: [...]}` (divergence from polymarket flat array).
     pub async fn activity(
         &self,
         address: &str,
@@ -178,7 +178,7 @@ impl DataClient {
 
     // ─── /prices-history ───────────────────────────────────────────────────
 
-    /// `GET /prices-history` — token price history. `interval` accepts the chainup
+    /// `GET /prices-history` — token price history. `interval` accepts the
     /// granularity strings (`1m / 1h / 6h / 1d / max`). `fidelity` is the bucket
     /// resolution in seconds (defaults to interval-appropriate value).
     pub async fn prices_history(
@@ -201,7 +201,7 @@ impl DataClient {
 
     /// `GET /user-pnl` — cumulative profit/loss time-series for a wallet.
     /// `interval` accepts `1d / 1w / 1m / all`. `fidelity` accepts `1h / 3h / 12h / 18h / 1d`.
-    /// Live wire uses `user_address` as the address param (chainup divergence from polymarket's `user`).
+    /// Live wire uses `user_address` as the address param (divergence from polymarket's `user`).
     pub async fn user_pnl(
         &self,
         address: &str,
@@ -256,7 +256,7 @@ impl DataClient {
     // ─── /unwrap-requests ──────────────────────────────────────────────────
 
     /// `GET /unwrap-requests` — USDW unwrap queue for a Safe address.
-    /// Chainup-only — no polymarket equivalent.
+    /// No Polymarket V1 equivalent.
     pub async fn unwrap_requests(
         &self,
         safe: &str,
@@ -326,7 +326,7 @@ mod tests {
     use crate::data::types::{LeaderboardResponse, Position, StatsResponse, Trade};
 
     #[test]
-    fn position_decodes_with_camelcase_fields_and_chainup_extras() {
+    fn position_decodes_with_camelcase_fields_and_extra_fields() {
         let raw = r#"{
           "proxyWallet": "0x7e63",
           "asset": "1234",

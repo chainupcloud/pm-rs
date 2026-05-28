@@ -1,4 +1,4 @@
-//! Integration tests for the chainup batch read endpoints + price history.
+//! Integration tests for the batch read endpoints + price history.
 
 use pm_rs_clob_client::clob::types::PriceHistoryInterval;
 use pm_rs_clob_client::{Client, Endpoints, Side};

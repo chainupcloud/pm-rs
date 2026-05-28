@@ -1,8 +1,8 @@
 [package]
 name = "pm-rs-clob-client"
 version = "0.1.0"
-description = "ChainUp pm-cup2026 CLOB Rust client SDK"
-keywords = ["chainup", "polymarket", "clob", "prediction-market"]
+description = "pm-cup2026 CLOB Rust client SDK"
+keywords = ["polymarket", "clob", "prediction-market"]
 categories = ["api-bindings", "finance", "web-programming::http-client"]
 edition.workspace = true
 rust-version.workspace = true
