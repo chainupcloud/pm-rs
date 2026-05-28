@@ -1,6 +1,6 @@
-//! Chainup `data-service` REST client (portfolio / trades / activity / leaderboards).
+//! `data-service` REST client (portfolio / trades / activity / leaderboards).
 //!
-//! `data-service` is a separate microservice from CLOB / Gamma; in chainup it lives at
+//! `data-service` is a separate microservice from CLOB / Gamma; it lives at
 //! `data-api.<tenant>` (e.g. `https://data-api.hermestrade.xyz`). Construct a
 //! [`DataClient`] from a parent [`crate::Client`] via [`crate::Client::data`].
 //!

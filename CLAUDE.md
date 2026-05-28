@@ -13,9 +13,9 @@ Telegram chat replies to the user may remain Chinese; this rule applies to repos
 
 ## Project scope
 
-`pm-rs` is the Rust toolchain for ChainUp's [`pm-cup2026`](https://github.com/chainupcloud/pm-cup2026) prediction-market platform. Cargo workspace with two member crates:
+`pm-rs` is the Rust toolchain for [`pm-cup2026`](https://github.com/chainupcloud/pm-cup2026) prediction-market platform. Cargo workspace with two member crates:
 
-- `pm-rs-clob-client` (lib) — CLOB / Gamma / WebSocket SDK. Counterpart of [`pm-sdk-go`](https://github.com/chainupcloud/pm-sdk-go); ported from Polymarket's `rs-clob-client` V1 with chainup-specific extensions.
+- `pm-rs-clob-client` (lib) — CLOB / Gamma / WebSocket SDK. Counterpart of [`pm-sdk-go`](https://github.com/chainupcloud/pm-sdk-go); ported from Polymarket's `rs-clob-client` V1 with platform-specific extensions.
 - `pm-cli` (bin: `pm`) — terminal client. Counterpart of Polymarket's `polymarket-cli`.
 
 ## Hard constraints (drive API design)

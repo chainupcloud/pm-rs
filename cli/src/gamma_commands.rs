@@ -1,9 +1,9 @@
-//! CLI subcommands for the chainup Gamma API.
+//! CLI subcommands for the Gamma API.
 //!
 //! Mirrors `polymarket-cli`'s `events / markets / tags / series / comments /
 //! profiles / sports / search` tree, dropping subcommands whose endpoint does
-//! not exist in the chainup gamma openapi (no `teams`, no `markets list`,
-//! no streaming) and adding ones that do exist in chainup (`curation events`,
+//! not exist in the gamma openapi (no `teams`, no `markets list`,
+//! no streaming) and adding platform-only ones (`curation events`,
 //! `series summary`, `sport-types`, `public-info`, `agreements`).
 //!
 //! Wired into [`crate::commands::run`] via a single `Command::Gamma` arm so

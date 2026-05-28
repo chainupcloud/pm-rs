@@ -1,4 +1,4 @@
-//! ChainUp pm-cup2026 EIP-712 signer.
+//! pm-cup2026 EIP-712 signer.
 //!
 //! Produces byte-identical signatures with `pm-sdk-go/pkg/signer` for:
 //!
@@ -25,9 +25,8 @@ use crate::types::ScopeId;
 pub const CLOB_AUTH_DOMAIN_NAME: &str = "ClobAuthDomain";
 
 /// EIP-712 domain name for the CTFExchange order. Note: domain name is
-/// `"Prediction Market Protocol"` (NOT `"CTFExchange"` or `"Polymarket CTF Exchange"` — chainup
-/// chose this name on its on-chain contract and the SDK must match exactly or signature
-/// verification fails on-chain).
+/// `"Prediction Market Protocol"` (NOT `"CTFExchange"` or `"Polymarket CTF Exchange"` — this
+/// name is fixed on-chain and the SDK must match exactly or signature verification fails).
 pub const ORDER_DOMAIN_NAME: &str = "Prediction Market Protocol";
 
 /// EIP-712 domain version. Both ClobAuth and Order share `"1"`.
@@ -92,7 +91,7 @@ sol! {
 }
 
 sol! {
-    /// EIP-712 struct for chainup gamma-service `/auth/login`. Matches the on-server type
+    /// EIP-712 struct for gamma-service `/auth/login`. Matches the on-server type
     /// hash at `services/gamma-service/internal/auth/eip712.go:28` and the front-end
     /// signTypedData call at `apps/user-dapp/src/hooks/useSetupSteps.ts:67`.
     #[derive(Debug)]
@@ -382,7 +381,7 @@ impl PMCup26Signer {
 
     /// Sign the ClobAuth L1 challenge and return a 65-byte `r||s||v` signature.
     ///
-    /// `v` is normalized to `0x00 / 0x01` (chainup / pm-sdk-go convention — matches
+    /// `v` is normalized to `0x00 / 0x01` (pm-sdk-go convention — matches
     /// `go-ethereum/crypto.Sign` which returns recovery_id in {0,1}).
     pub fn sign_clob_auth(&self, timestamp: &str, nonce: u64) -> Result<[u8; 65]> {
         let digest = clob_auth_digest(self.address, timestamp, nonce, self.scope_id, self.chain_id);

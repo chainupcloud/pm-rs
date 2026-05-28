@@ -53,7 +53,7 @@ pub enum OrderCommand {
     Scoring(ScoringArgs),
 }
 
-/// `pm order create` arguments — mirrors `Polymarket clob create-order` shape with chainup
+/// `pm order create` arguments — mirrors `Polymarket clob create-order` shape with
 /// renames. `--limit` / `--market` selects the builder variant (limit by default).
 #[derive(Debug, Args)]
 pub struct CreateArgs {
@@ -132,7 +132,7 @@ pub struct MarketArgs {
     /// Override the default order type (`FAK`). Use `FOK` for fill-or-kill.
     #[arg(long, value_enum)]
     pub order_type: Option<OrderTypeArg>,
-    /// Optional limit price fallback in (0, 1) — chainup performs market matching server-side
+    /// Optional limit price fallback in (0, 1) — the server performs market matching server-side
     /// but a price field is required on the wire.
     #[arg(long)]
     pub price: Option<Decimal>,
@@ -321,7 +321,7 @@ pub struct TradeArgs {
     /// Unix-seconds lower bound.
     #[arg(long)]
     pub after: Option<i64>,
-    /// Snowflake `from_id` ASC cursor (chainup-specific).
+    /// Snowflake `from_id` ASC cursor.
     #[arg(long)]
     pub from_id: Option<i64>,
     /// Page size [1, 1000]. Server default 100.
@@ -437,7 +437,7 @@ async fn run_post_batch(args: &Cli, a: &PostBatchArgs, fmt: Format) -> anyhow::R
     }
     if tokens.len() > 15 {
         return Err(anyhow!(
-            "chainup accepts at most 15 orders per batch (got {})",
+            "accepts at most 15 orders per batch (got {})",
             tokens.len()
         ));
     }
@@ -646,7 +646,7 @@ fn build_signed_order(
         Some(s) => parse_address(s).with_context(|| format!("invalid --maker {s}"))?,
         None if signature_type == SignatureType::PolyGnosisSafe => {
             return Err(anyhow!(
-                "--maker is required for signature_type=gnosis-safe (chainup default). \
+                "--maker is required for signature_type=gnosis-safe (default). \
                  Pass --maker <Safe address> or --signature-type eoa."
             ));
         }

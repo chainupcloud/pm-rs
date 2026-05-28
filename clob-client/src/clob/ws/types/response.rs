@@ -1,4 +1,4 @@
-//! Inbound event payloads pushed by the chainup CLOB WebSocket server.
+//! Inbound event payloads pushed by the CLOB WebSocket server.
 //!
 //! Two top-level enums correspond to the two channels:
 //!
@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 /// Timestamp wrapper accepting both `1700000000` and `"1700000000"`.
 ///
-/// The chainup server marshals timestamps as JSON numbers, but a handful of
+/// The server marshals timestamps as JSON numbers, but a handful of
 /// MM-lazy paths (and downstream relays) re-emit them quoted; both flavours
 /// must round-trip cleanly.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
@@ -57,7 +57,7 @@ impl<'de> Deserialize<'de> for Timestamp {
                 if let Ok(n) = v.parse::<i64>() {
                     return Ok(Timestamp(n));
                 }
-                // chainup WS occasionally emits RFC3339 (e.g. `2026-05-19T19:17:39Z`).
+                // The server WS occasionally emits RFC3339 (e.g. `2026-05-19T19:17:39Z`).
                 if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(v) {
                     return Ok(Timestamp(dt.timestamp()));
                 }
@@ -75,7 +75,7 @@ pub struct OrderLevel {
     pub size: String,
 }
 
-/// Side enum used by every event that carries one. The chainup wire format
+/// Side enum used by every event that carries one. The wire format
 /// uses uppercase `BUY` / `SELL`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -86,7 +86,7 @@ pub enum OrderSide {
 
 /// Top-level inbound enum for the `/ws/market` channel. Dispatch is keyed on
 /// `event_type`; the actual payload sits inside the wire `data: {...}` field — the
-/// asyncapi spec shows a flat shape, but production chainup nests it. We use serde's
+/// asyncapi spec shows a flat shape, but production wire format nests it. We use serde's
 /// `tag + content` adjacent encoding to read the nested form. Top-level `asset_id`
 /// (which the server echoes outside `data` on book / price-change frames) is ignored
 /// because the same value is repeated inside the nested payload.
@@ -219,8 +219,8 @@ pub struct MarketResolvedEvent {
 
 // ─── user channel ───────────────────────────────────────────────────────────
 
-/// Top-level inbound enum for the `/ws/user` channel. Like [`MarketEvent`], live chainup
-/// nests the per-event payload inside `data: {...}` (with `owner` and `condition_id`
+/// Top-level inbound enum for the `/ws/user` channel. Like [`MarketEvent`], the live
+/// server nests the per-event payload inside `data: {...}` (with `owner` and `condition_id`
 /// echoed at the top level alongside `event_type`).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "event_type", content = "data", rename_all = "snake_case")]
@@ -298,7 +298,7 @@ pub enum TraderSide {
 
 /// `order` event payload, sent inside `data: {...}` on the user channel.
 ///
-/// Live chainup uses an extremely lean envelope — only `id` and `status` are guaranteed.
+/// The live server uses an extremely lean envelope — only `id` and `status` are guaranteed.
 /// Placement events fill `asset_id` / `side` / `original_size` / `price` / `type`;
 /// cancellation events typically arrive with just `{id, status}`. Every field is
 /// defaulted / optional so both shapes decode cleanly.
@@ -314,7 +314,7 @@ pub struct OrderEvent {
     pub price: String,
     #[serde(default)]
     pub original_size: String,
-    /// Chainup wire field `type` carries the order type (`GTC`/`GTD`/`FOK`/`FAK`).
+    /// Wire field `type` carries the order type (`GTC`/`GTD`/`FOK`/`FAK`).
     #[serde(default, rename = "type")]
     pub order_type: String,
     /// MM-lazy persistence flag, serialized as the string `"true"` / `"false"`.
@@ -322,7 +322,7 @@ pub struct OrderEvent {
     pub lazy: Option<String>,
     #[serde(default)]
     pub size_matched: String,
-    /// Optional fields the asyncapi spec lists but chainup currently omits — kept defaulted
+    /// Optional fields the asyncapi spec lists but the server currently omits — kept defaulted
     /// for forward-compat and so legacy fixture tests still decode.
     #[serde(default)]
     pub owner: String,
@@ -344,13 +344,13 @@ pub struct OrderEvent {
 
 /// `trade` event payload, sent inside `data: {...}` on the user channel.
 ///
-/// Like [`OrderEvent`], live chainup emits a lean envelope. The fields guaranteed by
+/// Like [`OrderEvent`], the live server emits a lean envelope. The fields guaranteed by
 /// observation are `id`, `asset_id`, `side`, `size`, `price`, and `status`. The asyncapi
-/// spec lists many more (maker_orders, trader_side, transaction_hash, …) which chainup
+/// spec lists many more (maker_orders, trader_side, transaction_hash, …) which the server
 /// either omits or fills only on later lifecycle frames (mined / confirmed). Every
 /// optional field has a serde default so both shapes decode cleanly.
 ///
-/// Chainup adds two fields not in the spec: `match_type` (`MATCH` / `MINT` / `MERGE` for
+/// Two fields not in the spec: `match_type` (`MATCH` / `MINT` / `MERGE` for
 /// negRisk minting) and `order_id` (the order this trade settled into — a synonym for
 /// `taker_order_id` accepted via alias).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -374,7 +374,7 @@ pub struct TradeEvent {
     #[serde(default)]
     pub fee_rate_bps: String,
     /// Settlement type. `MATCH` = bilateral fill, `MINT` = mint complementary token
-    /// (negRisk maker side), `MERGE` = burn complementary pair. Empty when chainup omits.
+    /// (negRisk maker side), `MERGE` = burn complementary pair. Empty when omitted by server.
     #[serde(default)]
     pub match_type: String,
     #[serde(default)]
@@ -499,7 +499,7 @@ mod tests {
 
     #[test]
     fn order_event_decodes_live_placement_shape() {
-        // The shape chainup actually sends on the `/ws/user` channel: lean payload, wire
+        // The shape actually sent on the `/ws/user` channel: lean payload, wire
         // `type` carries the order type, status is lowercase.
         let raw = r#"{
             "event_type": "order",

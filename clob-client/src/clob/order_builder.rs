@@ -4,7 +4,7 @@
 //! / `amount` decimal values) plus the chain-level context owned by [`PMCup26Signer`].
 //!
 //! The builder mirrors `rs-clob-client::OrderBuilder` API shape with one concrete
-//! difference: chainup orders carry `scopeId` which comes from the signer, NOT a builder
+//! difference: orders carry `scopeId` which comes from the signer, NOT a builder
 //! field. The salt defaults to a deterministic-per-call value (current ns time, masked to
 //! 53 bits per pm-sdk-go convention) so the signed order is reproducible only when the
 //! caller pins it via `.salt(...)`.
@@ -20,7 +20,7 @@
 //! Tick-size enforcement: when the builder has fetched the per-market `minimum_tick_size`
 //! (via `--with-tick-size` or via the bundled `Client::limit_order(...)` flow that consults
 //! `/tick-size`), `price` is required to have at most that many decimals and to lie inside
-//! the inner interval `[tick, 1 - tick]`. `size` is capped at the chainup lot size of 2
+//! the inner interval `[tick, 1 - tick]`. `size` is capped at the lot size of 2
 //! decimals.
 //!
 //! ## Signature
@@ -165,7 +165,7 @@ impl<K: OrderKind> OrderBuilder<K> {
     }
 
     /// Limit price (also accepted by market orders as a fallback when book-walking is not
-    /// implemented client-side — chainup performs the actual market matching server-side).
+    /// implemented client-side — the server performs the actual market matching).
     #[must_use]
     pub fn price(mut self, price: Decimal) -> Self {
         self.price = Some(price);
@@ -224,7 +224,7 @@ impl<K: OrderKind> OrderBuilder<K> {
         self
     }
 
-    /// Maker (Safe-wallet) address. **Required** for `signatureType = 2` (the chainup
+    /// Maker (Safe-wallet) address. **Required** for `signatureType = 2` (the
     /// default); see `services/clob-service/CLAUDE.md` "Safe 钱包架构".
     #[must_use]
     pub fn maker(mut self, addr: Address) -> Self {
@@ -308,7 +308,7 @@ impl<K: OrderKind> OrderBuilder<K> {
         }
         // signer of the EIP-712 struct is *always* the EOA.
         signable.order.signer = signer.address();
-        // scope id flows from the signer (chainup-specific).
+        // scope id flows from the signer.
         signable.order.scope_id = signer.scope_id();
         Ok(signable)
     }
@@ -410,7 +410,7 @@ impl<K: OrderKind> OrderBuilder<K> {
         // Market-order path.
         let price = self.price.ok_or_else(|| {
             Error::validation(
-                "OrderBuilder: market orders need a limit price (the chainup server runs the \
+                "OrderBuilder: market orders need a limit price (the server runs the \
                  actual book walk; the signed order still carries makerAmount/takerAmount \
                  anchored at this price)",
             )
@@ -443,7 +443,7 @@ impl<K: OrderKind> OrderBuilder<K> {
     }
 }
 
-/// Compute the chainup `(makerAmount, takerAmount)` per Side.
+/// Compute the `(makerAmount, takerAmount)` per Side.
 ///
 /// Both outputs are 6-decimal raw integers (`u128` -> `U256`). Truncates with floor —
 /// matches `pm-sdk-go::toBaseUnits` (`Truncate(6).Shift(6).Truncate(0)`).
@@ -496,7 +496,7 @@ fn validate_size(size: Decimal) -> Result<()> {
     }
     if size.scale() > LOT_SIZE_SCALE {
         return Err(Error::validation(format!(
-            "size {size} has {} decimals; chainup lot size is {LOT_SIZE_SCALE}",
+            "size {size} has {} decimals; lot size is {LOT_SIZE_SCALE}",
             size.scale()
         )));
     }
@@ -607,7 +607,7 @@ mod tests {
     }
 
     #[test]
-    fn buy_amounts_match_chainup_formula() {
+    fn buy_amounts_match_formula() {
         // BUY 100 shares at $0.34 -> makerAmount=34_000_000 USDC, takerAmount=100_000_000 token.
         let (maker, taker) = compute_amounts(Side::Buy, dec!(0.34), dec!(100)).unwrap();
         assert_eq!(maker, U256::from(34_000_000u64));
@@ -615,7 +615,7 @@ mod tests {
     }
 
     #[test]
-    fn sell_amounts_match_chainup_formula() {
+    fn sell_amounts_match_formula() {
         // SELL 100 shares at $0.65 -> makerAmount=100_000_000 token, takerAmount=65_000_000 USDC.
         let (maker, taker) = compute_amounts(Side::Sell, dec!(0.65), dec!(100)).unwrap();
         assert_eq!(maker, U256::from(100_000_000u64));

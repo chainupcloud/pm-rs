@@ -12,7 +12,7 @@
 //!    calldata in a [`SafeTransaction`] with `to = multiSendAddress`,
 //!    `operation = SafeOperation::DelegateCall`.
 //!
-//! All wire formats match Gnosis Safe v1.3 — the version chainup deploys.
+//! All wire formats match Gnosis Safe v1.3.
 
 pub mod multisend;
 
@@ -50,7 +50,7 @@ pub struct SafeTransaction {
 
 impl SafeTransaction {
     /// Construct a single-call SafeTx with zero gas params (relayer-pays mode — the
-    /// chainup `relayer-service` ignores the gas fields and uses its own gas-key pool).
+    /// `relayer-service` ignores the gas fields and uses its own gas-key pool).
     #[must_use]
     pub fn call(to: Address, data: Vec<u8>, nonce: U256) -> Self {
         Self {

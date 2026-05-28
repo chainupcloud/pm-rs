@@ -1,4 +1,4 @@
-//! Query-parameter request structs for the chainup Gamma API.
+//! Query-parameter request structs for the Gamma API.
 //!
 //! Each struct serialises directly into a URL query string via `serde_html_form`.
 //! Optional fields wrapped in `Option<T>` are skipped when `None`, matching

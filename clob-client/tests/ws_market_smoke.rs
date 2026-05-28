@@ -1,4 +1,4 @@
-//! Live network smoke test against the chainup `clob-ws` host.
+//! Live network smoke test against the `clob-ws` host.
 //!
 //! Marked `#[ignore]`; run with:
 //!

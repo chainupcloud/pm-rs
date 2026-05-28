@@ -4,7 +4,7 @@ use std::time::Duration;
 
 /// Tunable knobs for a single WebSocket connection / reconnect loop.
 ///
-/// Defaults match the chainup `clob-service` server (`pingPeriod = 10s`,
+/// Defaults match the `clob-service` server (`pingPeriod = 10s`,
 /// `pongWait = 15s` — see `services/clob-service/internal/wsservice/market_channel.go`)
 /// and the `pm-sdk-go` reference implementation (`maxBackoff = 30s`).
 #[derive(Clone, Debug)]

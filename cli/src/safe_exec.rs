@@ -1,4 +1,4 @@
-//! Shared plumbing for chainup Safe-mode write commands (`pm approve set`, `pm ctf
+//! Shared plumbing for Safe-mode write commands (`pm approve set`, `pm ctf
 //! redeem`, `pm ctf split`, `pm ctf merge`). Each command:
 //!
 //! 1. Resolves wallet identity (EOA + Safe + scope) from the local config.
@@ -279,7 +279,7 @@ pub fn require_signature_type_safe(args: &Cli) -> Result<()> {
     let st = crate::commands::effective_signature_type(args)?;
     if !matches!(st, pm_rs_clob_client::types::SignatureType::PolyGnosisSafe) {
         bail!(
-            "Safe-mode required (signatureType=gnosis-safe); current = {st:?}. chainup only supports Safe-mode writes"
+            "Safe-mode required (signatureType=gnosis-safe); current = {st:?}. Only Safe-mode writes are supported"
         );
     }
     Ok(())

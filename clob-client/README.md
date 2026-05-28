@@ -1,8 +1,8 @@
 # pm-rs-clob-client
 
-Rust SDK for ChainUp's [`pm-cup2026`](https://github.com/chainupcloud/pm-cup2026) prediction-market platform — a Polymarket V1-compatible CLOB extended with multi-tenant `scopeId` isolation.
+Rust SDK for [`pm-cup2026`](https://github.com/chainupcloud/pm-cup2026) prediction-market platform — a Polymarket V1-compatible CLOB extended with multi-tenant `scopeId` isolation.
 
-Counterpart of the official Go SDK [`pm-sdk-go`](https://github.com/chainupcloud/pm-sdk-go). Ported from Polymarket's [`rs-clob-client`](https://github.com/Polymarket/rs-clob-client) with chainup-specific extensions; signer is **byte-identical** to `pm-sdk-go/pkg/signer` (golden-tested).
+Counterpart of the official Go SDK [`pm-sdk-go`](https://github.com/chainupcloud/pm-sdk-go). Ported from Polymarket's [`rs-clob-client`](https://github.com/Polymarket/rs-clob-client) with specific extensions; signer is **byte-identical** to `pm-sdk-go/pkg/signer` (golden-tested).
 
 ```toml
 [dependencies]
@@ -13,22 +13,22 @@ pm-rs-clob-client = { git = "https://github.com/chainupcloud/pm-rs", package = "
 
 | Surface | Coverage | Notes |
 |---------|----------|-------|
-| Signer | ✅ `ClobAuth` + `Order` EIP-712, byte-aligned with `pm-sdk-go` | Three signature types: `Eoa` (0), `PolyProxy` (1), `PolyGnosisSafe` (2 — chainup default). |
+| Signer | ✅ `ClobAuth` + `Order` EIP-712, byte-aligned with `pm-sdk-go` | Three signature types: `Eoa` (0), `PolyProxy` (1), `PolyGnosisSafe` (2 — default). |
 | L1 auth (API-key CRUD) | ✅ Create / derive / list / delete API keys via `/auth/*` | Uses `ClobAuth` EIP-712 challenge with `PRED_*` headers. |
 | L2 auth (trading) | ✅ HMAC-SHA256 on every request | **Standard** base64 secret, not URL-safe. |
 | Order placement | ✅ Limit / market / GTC / GTD / FOK / FAK + `post-only` | Server runs book walk for market orders; client anchors `makerAmount` / `takerAmount` at a price. |
 | Order management | ✅ Single + batch place / cancel / cancel-all / replace | `/orders/replace` atomic swap supported. |
 | Balances + positions | ✅ Collateral (USDW / USDC) + conditional (CTF) via `/balance` | Server returns `virtual_available` + `locked` breakdown. |
 | Batch reads | ✅ `/midpoints`, `/prices`, `/spreads`, `/books`, `/last-trades-prices` | All five accept up to 500 ids in one call. |
-| Market data | ✅ `/midpoint`, `/price`, `/spread`, `/book`, `/tick-size`, `/fee-rate`, `/last-trade-price`, `/price-history` | Chainup intervals: `1H / 6H / 1D / 1W / 1M / ALL`. |
+| Market data | ✅ `/midpoint`, `/price`, `/spread`, `/book`, `/tick-size`, `/fee-rate`, `/last-trade-price`, `/price-history` | Intervals: `1H / 6H / 1D / 1W / 1M / ALL`. |
 | Gamma (events, tags, profiles) | ✅ REST surface | Streaming variant intentionally not implemented (see Non-goals). |
-| WebSocket — market | ✅ Book / price-change / last-trade-price / tick-size-change / best-bid-ask / new-market / market-resolved | Adjacent encoding `tag="event_type", content="data"` matches live chainup wire. |
+| WebSocket — market | ✅ Book / price-change / last-trade-price / tick-size-change / best-bid-ask / new-market / market-resolved | Adjacent encoding `tag="event_type", content="data"` matches the live wire format. |
 | WebSocket — user | ✅ Order + trade events with auto-reconnect, runtime subscribe / unsubscribe | Lean payload mode: cancellation arrives as `{id, status}` only, both shapes decode cleanly. |
 | Approval helpers | ✅ Read-only `IERC20.allowance` + `IERC1155.isApprovedForAll` via alloy | The `set` flow ships through the new Safe / relayer modules — see below. |
-| Safe meta-tx primitives (`safe` module) | ✅ Gnosis Safe v1.3 `SafeTransaction` + `multisend` packed encoder | `SafeTransaction::{call, delegate_call}` + `multisend::encode` produce wire-identical calldata to chainup's front-end. |
+| Safe meta-tx primitives (`safe` module) | ✅ Gnosis Safe v1.3 `SafeTransaction` + `multisend` packed encoder | `SafeTransaction::{call, delegate_call}` + `multisend::encode` produce wire-identical calldata to the front-end. |
 | `SafeTx` / `LoginMessage` signing | ✅ Both EIP-712 types implemented on `PMCup26Signer` | `sign_safe_tx` and `sign_login_message` return Ethereum-`v` (27/28) signatures matching `Safe.execTransaction`'s on-chain verifier. |
 | Gamma `/auth/login` (JWT) | ✅ `Client::jwt_login` | One-shot `/auth/nonce` → sign `LoginMessage` → `/auth/login` → returns Bearer token for relayer auth. |
-| Relayer client (`relayer` module) | ✅ `RelayerClient::{submit, transaction, poll_until_terminal}` | Wire matches chainup's `pm-cup2026/services/relayer-service` (camelCase + the `safeTxnGas` typo). JWT or API-Key auth. |
+| Relayer client (`relayer` module) | ✅ `RelayerClient::{submit, transaction, poll_until_terminal}` | Wire matches `pm-cup2026/services/relayer-service` (camelCase + the `safeTxnGas` typo). JWT or API-Key auth. |
 
 ## Quick start
 
@@ -57,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-### Authenticated client (Safe wallet — chainup default)
+### Authenticated client (Safe wallet — default)
 
 ```rust
 use pm_rs_clob_client::{
@@ -116,7 +116,7 @@ let (_signable, signed) = OrderBuilder::limit()
     .token_id(token)
     .side(Side::Buy)
     .price(dec!(0.10))
-    .size(dec!(5))               // chainup minimum is 5 shares
+    .size(dec!(5))               // minimum is 5 shares
     .fee_rate_bps(20)
     .maker(safe)                 // Safe holds the funds; EOA signer is implicit
     .build_and_sign(&signer)?;
@@ -142,11 +142,11 @@ let (_signable, signed) = OrderBuilder::market()
 client.post_order(signed, OrderType::Fak, false, "").await?;
 ```
 
-Chainup's server runs the actual book walk, but the signed envelope still carries `makerAmount` / `takerAmount` anchored at the price. The client validates lot size before signing: `amount / price` must be a multiple of 0.01.
+The server runs the actual book walk, but the signed envelope still carries `makerAmount` / `takerAmount` anchored at the price. The client validates lot size before signing: `amount / price` must be a multiple of 0.01.
 
 ### Safe-mode write via the relayer (path B)
 
-For any on-chain write — token approvals, CTF split / merge / redeem — chainup only accepts `signatureType=2`. Instead of broadcasting from the EOA, sign a `Safe.execTransaction` payload and submit it to the chainup `relayer-service`; the relayer broadcasts from its own gas-key pool, so the user spends zero collateral.
+For any on-chain write — token approvals, CTF split / merge / redeem — only `signatureType=2` is accepted. Instead of broadcasting from the EOA, sign a `Safe.execTransaction` payload and submit it to the `relayer-service`; the relayer broadcasts from its own gas-key pool, so the user spends zero collateral.
 
 ```rust
 use pm_rs_clob_client::{Client, PMCup26Signer};
@@ -313,21 +313,21 @@ Driven against `clob-api.hermestrade.xyz` on Monad (chainId 143) with a Gnosis-S
 - Approval cross-checks via on-chain `IERC20.allowance` + `IERC1155.isApprovedForAll`
 - Safe wallet pre-deployment + pre-approval verified via on-chain `Safe.getOwners()`
 
-Seven SDK fixes landed during the runs in response to live-wire surprises (see commit log `1a97466..HEAD`). The most common surprise: chainup's wire schema is leaner than the asyncapi spec — most fields default-able, sometimes only `{id, status}` is sent.
+Seven SDK fixes landed during the runs in response to live-wire surprises (see commit log `1a97466..HEAD`). The most common surprise: the wire schema is leaner than the asyncapi spec — most fields default-able, sometimes only `{id, status}` is sent.
 
 ## Non-goals
 
-Things this SDK intentionally does **not** ship — typically because chainup's backend doesn't expose them, not because we ran out of time:
+Things this SDK intentionally does **not** ship — typically because the backend doesn't expose them, not because we ran out of time:
 
 - **Hard-coded contract addresses** — Polymarket's `phf_map!` in `lib.rs` is rejected by design. Everything comes from runtime config.
-- **`/markets`, `/sampling-markets`, `/simplified-markets`** — chainup pushes market discovery through Gamma.
-- **`/rewards`, `/earnings/total`, `/reward-percentages`** + 4 more — chainup tenants run their own incentive logic.
-- **`/notifications`, `/closed-only-mode`, `/account-status`, `/geoblock`** — not exposed by chainup's CLOB.
-- **Gamma streaming** — chainup Gamma is REST-only.
-- **EOA-broadcast `ctf split / merge / redeem`** — chainup only supports `signatureType=2` (Safe). The SDK provides the building blocks (`safe`, `relayer`, `sign_safe_tx`, `jwt_login`) so callers can compose any Safe meta-tx — but it does not ship an EOA-direct broadcaster, since the chainup backend does not honour those orders.
-- **Polymarket bridge, rtds, rfq** — Polymarket-proprietary endpoints not present on chainup.
+- **`/markets`, `/sampling-markets`, `/simplified-markets`** — market discovery goes through Gamma.
+- **`/rewards`, `/earnings/total`, `/reward-percentages`** + 4 more — tenants run their own incentive logic.
+- **`/notifications`, `/closed-only-mode`, `/account-status`, `/geoblock`** — not exposed by the CLOB.
+- **Gamma streaming** — Gamma is REST-only.
+- **EOA-broadcast `ctf split / merge / redeem`** — only `signatureType=2` (Safe) is supported. The SDK provides the building blocks (`safe`, `relayer`, `sign_safe_tx`, `jwt_login`) so callers can compose any Safe meta-tx — but it does not ship an EOA-direct broadcaster, since the backend does not honour those orders.
+- **Polymarket bridge, rtds, rfq** — Polymarket-proprietary endpoints not present here.
 
-If chainup's backend later ships any of these, the SDK can be extended without breaking the existing surface.
+If the backend later ships any of these, the SDK can be extended without breaking the existing surface.
 
 ## Testing
 

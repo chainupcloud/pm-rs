@@ -1,4 +1,4 @@
-//! HTTP client for chainup `relayer-service` (Safe meta-tx submission).
+//! HTTP client for `relayer-service` (Safe meta-tx submission).
 //!
 //! Constructed via [`crate::Client::relayer`]. Authentication is by JWT Bearer token —
 //! attach via [`RelayerClient::with_token`] (or use [`crate::Client::jwt_login`] to fetch
@@ -12,7 +12,7 @@ use url::Url;
 use crate::error::{Error, Result};
 use crate::relayer::types::{RelayerTransaction, SubmitRequest, SubmitResponse};
 
-/// Sub-client for the chainup `relayer-service`. Shares the underlying [`reqwest::Client`]
+/// Sub-client for the `relayer-service`. Shares the underlying [`reqwest::Client`]
 /// with the parent [`crate::Client`] for connection pooling.
 #[derive(Clone, Debug)]
 pub struct RelayerClient {

@@ -1,12 +1,12 @@
 # pm-rs
 
-Rust toolchain for ChainUp's [`pm-cup2026`](https://github.com/chainupcloud/pm-cup2026) prediction-market platform — a Polymarket V1-compatible CLOB with a multi-tenant `scopeId` extension.
+Rust toolchain for [`pm-cup2026`](https://github.com/chainupcloud/pm-cup2026) prediction-market platform — a Polymarket V1-compatible CLOB with a multi-tenant `scopeId` extension.
 
 Cargo workspace, two member crates:
 
 | Crate | Path | Purpose |
 |-------|------|---------|
-| `pm-rs-clob-client` | [`clob-client/`](clob-client/) | Rust SDK for `pm-cup2026` CLOB / Gamma / WebSocket APIs. Counterpart of [`pm-sdk-go`](https://github.com/chainupcloud/pm-sdk-go); ported from Polymarket's [`rs-clob-client`](https://github.com/Polymarket/rs-clob-client) (V1) with chainup-specific extensions: `scopeId`-extended EIP-712 `ClobAuth` / `Order` domains, `PRED_*` auth headers (vs `POLY_*`), standard-base64 HMAC encoding (vs URL-safe). |
+| `pm-rs-clob-client` | [`clob-client/`](clob-client/) | Rust SDK for `pm-cup2026` CLOB / Gamma / WebSocket APIs. Counterpart of [`pm-sdk-go`](https://github.com/chainupcloud/pm-sdk-go); ported from Polymarket's [`rs-clob-client`](https://github.com/Polymarket/rs-clob-client) (V1) with specific extensions: `scopeId`-extended EIP-712 `ClobAuth` / `Order` domains, `PRED_*` auth headers (vs `POLY_*`), standard-base64 HMAC encoding (vs URL-safe). |
 | `pm-cli` | [`cli/`](cli/) | `pm` binary — terminal client for `pm-cup2026`. Browse markets, place orders, manage positions. Counterpart of Polymarket's [`polymarket-cli`](https://github.com/Polymarket/polymarket-cli). |
 
 ## Status
@@ -29,7 +29,7 @@ cargo build
 ./target/debug/pm --tenant hermestrade.xyz midpoint <TOKEN_ID>
 
 # Or pass the CLOB URL directly (useful for non-canonical hostnames / dev setups).
-./target/debug/pm --clob-endpoint https://clob-api.predict.prax1s.xyz time
+./target/debug/pm --clob-endpoint https://clob-api.hermestrade.xyz time
 
 # Output as JSON (for scripting).
 ./target/debug/pm --tenant hermestrade.xyz -o json time
@@ -55,7 +55,7 @@ let client = Client::builder()
     .user_agent("my-app/1.0")
     .build()?;
 
-// Or derive from tenant host (chainup canonical pattern)
+// Or derive from tenant host (canonical pattern)
 let client = Client::builder()
     .tenant("hermestrade.xyz")?
     .chain_id(143)
@@ -64,7 +64,7 @@ let client = Client::builder()
 
 Reference network configs (NOT hard-coded in the SDK — caller supplies them at runtime) live under [`examples/networks/`](examples/networks/).
 
-## Why a chainup-specific fork?
+## Why a platform-specific fork?
 
 `pm-cup2026` extends Polymarket V1 with multi-tenant `scopeId` isolation:
 

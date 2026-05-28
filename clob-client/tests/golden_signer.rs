@@ -2,7 +2,7 @@
 //!
 //! Reads `pm-sdk-go/pkg/signer/testdata/golden.json` and checks every fixture against
 //! `pm-rs-clob-client::signer`. If any digest, struct hash, or signature drifts, Phase 2 will
-//! produce orders the chainup backend rejects — so this is the canary test.
+//! produce orders the backend rejects — so this is the canary test.
 
 use pm_rs_clob_client::signer::{
     OrderForSigning, PMCup26Signer, clob_auth_digest, clob_auth_domain_separator,

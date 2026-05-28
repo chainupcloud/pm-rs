@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// Order-book depth level a `/ws/market` subscriber may request.
 ///
-/// The chainup server treats unknown / `0` as the default (`Two`).
+/// The server treats unknown / `0` as the default (`Two`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(into = "u8", try_from = "u8")]
 pub enum MarketLevel {

@@ -1,6 +1,6 @@
 # pm-rs auth flow (Phase 2.1)
 
-This document describes the L1 (EIP-712) and L2 (HMAC-SHA256) authentication used by `pm-rs-clob-client` Phase 2.1, including the chainup-specific Safe-wallet derivation note.
+This document describes the L1 (EIP-712) and L2 (HMAC-SHA256) authentication used by `pm-rs-clob-client` Phase 2.1, including the Safe-wallet derivation note.
 
 Authoritative server-side references:
 - `pm-cup2026/services/clob-service/internal/tradingapi/handlers/auth.go` — L1 verification.
@@ -79,7 +79,7 @@ Byte-level subtleties — these must match `middleware/auth.go::computeHMAC` exa
 - **`path` is the URL path ONLY** — the query string is excluded. The server reads `c.Request.URL.Path` (Gin), which never contains `?...`. Signing path+query produces `401 invalid signature`.
 - **Method is the upper-case verb** (`GET`, `POST`, ...). `Request::method().as_str()` returns the upper-case form, which matches the server.
 - **Body is the raw UTF-8 bytes** that the server reads from the request, exactly as transmitted. For GET / DELETE this is the empty string.
-- **base64 uses the STANDARD alphabet** (`+ /` instead of `- _`). Polymarket V1 uses URL-safe; chainup deliberately diverged for `pm-cup2026`.
+- **base64 uses the STANDARD alphabet** (`+ /` instead of `- _`). Polymarket V1 uses URL-safe; `pm-cup2026` deliberately diverged.
 - **Secret decode is permissive**: the server falls back to raw bytes when the secret is not valid base64. The SDK mirrors this in `auth::compute_l2_hmac`.
 
 ### Sequence (any L2 request)
@@ -99,7 +99,7 @@ client                                                              server
 
 ---
 
-## 3. Safe-wallet derivation (chainup-specific)
+## 3. Safe-wallet derivation
 
 `pm-cup2026` users transact through a **Gnosis Safe** (`signatureType = 2`):
 

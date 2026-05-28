@@ -28,7 +28,7 @@ pub enum WalletCommand {
     Reset(ResetArgs),
     /// Persist the Safe wallet address to `<config-dir>/config.toml`.
     SetSafe(SetSafeArgs),
-    /// Fetch the Safe address from the chainup server via `GET /auth/api-keys` and save it.
+    /// Fetch the Safe address from the server via `GET /auth/api-keys` and save it.
     /// Requires an L2 key to already exist for the configured signer.
     DetectSafe,
 }
@@ -239,7 +239,7 @@ async fn run_detect_safe(args: &Cli, fmt: Format) -> Result<()> {
         }))?,
         Format::Table => {
             println!("detected safe_address = {canonical}");
-            println!("source                = chainup server (GET /auth/api-keys)");
+            println!("source                = server (GET /auth/api-keys)");
             println!("saved at              = {}", path.display());
         }
     }

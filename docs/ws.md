@@ -1,6 +1,6 @@
 # WebSocket subscriptions
 
-`pm-rs-clob-client` ships a typed client for the chainup `clob-service` WebSocket
+`pm-rs-clob-client` ships a typed client for the `clob-service` WebSocket
 service. The server lives on port `:8082` of the same process that serves the
 REST API on `:8080`, but at distinct paths:
 
@@ -59,8 +59,8 @@ The client sends the **text** frame `"PING"` every 10 s (the SDK default; see
 which the connection task swallows internally — application streams never see
 keep-alives.
 
-This is the chainup convention; protocol-level WebSocket Ping/Pong frames are
-*also* honored, but the chainup server doesn't use them.
+This is the server convention; protocol-level WebSocket Ping/Pong frames are
+*also* honored, but the server doesn't use them.
 
 ### Inbound events
 
@@ -90,7 +90,7 @@ The reconnect loop **never** swallows auth failures:
 
 - An HTTP error on the upgrade (`401`/`403`) surfaces as
   [`WsError::Auth`] and terminates the stream.
-- A user-channel `{"error":"authentication failed"}` envelope (the chainup
+- A user-channel `{"error":"authentication failed"}` envelope (the
   server's response to a bad apiKey + passphrase) surfaces as
   [`WsError::UserAuthRejected`] and terminates the stream.
 

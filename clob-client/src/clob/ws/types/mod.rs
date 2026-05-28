@@ -1,4 +1,4 @@
-//! Wire types for the chainup CLOB WebSocket channels.
+//! Wire types for the CLOB WebSocket channels.
 //!
 //! Authoritative schemas live in
 //! `pm-cup2026/services/clob-service/docs/asyncapi-{market,user}.json`. The

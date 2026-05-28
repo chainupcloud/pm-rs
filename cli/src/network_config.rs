@@ -58,7 +58,7 @@ pub struct TenantEndpoints {
 pub struct ContractsSection {
     pub ctf_exchange: String,
     /// ERC-1155 ConditionalTokens contract for `isApprovedForAll(owner, operator)` lookups.
-    /// On chainup Monad this is the same address as `ctf_exchange`; on other deployments it
+    /// On Monad this is the same address as `ctf_exchange`; on other deployments it
     /// may differ.
     #[serde(default)]
     pub conditional_tokens: Option<String>,
@@ -100,7 +100,7 @@ pub struct ContractsSection {
 
 impl ContractsSection {
     /// Return the address that callers should treat as the collateral token. Prefers
-    /// `usdc` if set, else `usdw` (chainup's wrapped USDC variant), else
+    /// `usdc` if set, else `usdw` (wrapped USDC variant), else
     /// `wrapped_collateral` (a NegRisk-context contract that is *not* the same as USDW on
     /// some deployments). Returns `None` if none are set.
     pub fn collateral(&self) -> Option<&str> {

@@ -164,7 +164,7 @@ fn signed_order_json_round_trip() {
 }
 
 #[test]
-fn buy_amounts_via_builder_match_chainup_formula() {
+fn buy_amounts_via_builder_match_formula() {
     use pm_rs_clob_client::clob::order_builder::OrderBuilder;
     use pm_rs_clob_client::clob::order_builder::Limit;
     use rust_decimal_macros::dec;
@@ -186,7 +186,7 @@ fn buy_amounts_via_builder_match_chainup_formula() {
 }
 
 #[test]
-fn sell_amounts_via_builder_match_chainup_formula() {
+fn sell_amounts_via_builder_match_formula() {
     use pm_rs_clob_client::clob::order_builder::OrderBuilder;
     use pm_rs_clob_client::clob::order_builder::Limit;
     use rust_decimal_macros::dec;

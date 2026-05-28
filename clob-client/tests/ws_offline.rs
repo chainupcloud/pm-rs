@@ -1,7 +1,7 @@
 //! Offline end-to-end tests for [`pm_rs_clob_client::ClobWebSocketClient`].
 //!
 //! We spin a minimal `tokio_tungstenite` server on a free port, drive the
-//! SDK against it, and assert the wire frames are exactly what the chainup
+//! SDK against it, and assert the wire frames are exactly what the
 //! `clob-service` would see.
 //!
 //! These tests do NOT touch the network and run on every `cargo test`.
@@ -58,7 +58,7 @@ async fn spin_server(push_frames: Vec<String>) -> (Url, SharedLog) {
         };
 
         // Push frames first so the SDK has something to decode before
-        // we wait for outbound (subscribe) frames. The chainup market server
+        // we wait for outbound (subscribe) frames. The market server
         // would not do this, but the SDK doesn't care about ordering — the
         // pump reads all inbound frames concurrently with sending.
         for frame in push_frames {

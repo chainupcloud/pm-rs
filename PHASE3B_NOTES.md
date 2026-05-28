@@ -14,7 +14,7 @@ This phase delivers WebSocket parity with `pm-sdk-go/pkg/ws` and shape-parity
 
 | Item | Kind | Notes |
 |------|------|-------|
-| `WsConfig` | struct | `ping_interval` / `initial_backoff` / `max_backoff` / `channel_capacity` / `connect_timeout` / `emit_reconnecting`. Defaults match the chainup server. |
+| `WsConfig` | struct | `ping_interval` / `initial_backoff` / `max_backoff` / `channel_capacity` / `connect_timeout` / `emit_reconnecting`. Defaults match the server. |
 | `WsConnection` | struct | Owns the reconnect loop + heartbeat task. Drop = abort. |
 | `WsEvent` | enum | `Connected` / `Message(String)` / `Reconnecting{attempt, after}` / `Disconnected` / `Error(WsError)`. |
 | `WsError` | enum | Variants: `Connect` / `Transport` / `Auth{status,message}` / `UserAuthRejected` / `Decode` / `Internal` / `Cancelled`. `is_fatal()` flags non-reconnectable cases. |
@@ -99,21 +99,20 @@ All subcommands honor Ctrl-C (graceful shutdown via `tokio::signal::ctrl_c`).
 
 - The market stream surfaces every event variant verbatim. The Polymarket
   V1 SDK ships per-message filter streams (e.g. `subscribe_orderbook` returns
-  only `BookUpdate` frames); the chainup SDK leaves that filtering to the
+  only `BookUpdate` frames); this SDK leaves that filtering to the
   caller for simplicity. Adding `subscribe_orderbook` / `subscribe_trades`
   helpers is a follow-on.
 - `pm ws book-watch` renders one line per event. There is no in-place
   redrawing; `clearscreen` was considered but kept out to avoid a CLI dep.
 - `MarketSubscribeOpts::initial_dump = Some(true)` is also sent on
-  reconnect. The chainup server always returns a `book` snapshot per asset
+  reconnect. The server always returns a `book` snapshot per asset
   in that case, which is the desired behavior — the alternative would be to
   track "first connect vs reconnect" and risk an inconsistent local book.
 - Reconnect does not retry on fatal auth errors (`WsError::Auth` /
   `WsError::UserAuthRejected`); both terminate the stream so the caller
   must explicitly re-build with corrected credentials.
 - The `Timestamp` newtype accepts both numeric and quoted-string inputs but
-  always serializes as a number on the way out. The Polymarket / chainup
-  server output is always numeric, so round-trip parity holds in practice.
+  always serializes as a number on the way out. Server output is always numeric, so round-trip parity holds in practice.
 
 ## Files added / modified
 

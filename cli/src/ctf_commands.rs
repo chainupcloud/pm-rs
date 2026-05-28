@@ -6,7 +6,7 @@
 //!   over ABI-encoded inputs, no RPC required, no signer required.
 //! - **On-chain Safe-mode operations** (`redeem`, `split`, `merge`) — build a SafeTx that
 //!   calls `ConditionalTokens` (or `NegRiskAdapter` via `--contract`) and submit via
-//!   chainup's relayer-service. Default dry-run; `--execute` actually submits.
+//!   the relayer-service. Default dry-run; `--execute` actually submits.
 //!
 //! `collection-id` requires alt_bn128 EC point addition per Gnosis CTF spec, so it's
 //! deferred to a future commit and will use an RPC fallback (`CTF.getCollectionId`).
@@ -47,7 +47,7 @@ pub enum CtfCmd {
     /// addition which is not yet implemented locally.
     CollectionId(CollectionIdArgs),
     /// Redeem winning outcome tokens — `redeemPositions(collateral, parentCollectionId,
-    /// conditionId, indexSets)`. Safe-mode via the chainup relayer-service. Defaults to
+    /// conditionId, indexSets)`. Safe-mode via the relayer-service. Defaults to
     /// dry-run; pass `--execute` to actually submit. Only succeeds after the condition
     /// has been resolved on-chain (i.e. `payoutNumerators` are non-zero).
     Redeem(RedeemArgs),
@@ -74,7 +74,7 @@ pub struct ConditionIdArgs {
 
 #[derive(Debug, Args)]
 pub struct PositionIdArgs {
-    /// Collateral token (USDW on chainup Monad), `0x...20bytes`.
+    /// Collateral token (USDW on Monad), `0x...20bytes`.
     #[arg(long)]
     pub collateral: String,
     /// Collection id, `0x...32bytes`. Output of `getCollectionId` — for binary markets the
@@ -617,7 +617,7 @@ mod tests {
     #[test]
     fn condition_id_matches_known_vector() {
         // Reproduces an on-chain CTF.getConditionId() result. Inputs come from a real
-        // chainup Monad market — sub-market 1007 "2 (50 bps)" on event 291:
+        // Monad market — sub-market 1007 "2 (50 bps)" on event 291:
         //
         //   oracle (UMA CTF Adapter):       0x44006C64C5D2f66772a32Da9692d2F5101ebB101
         //   questionId (chosen as zero for portability; real questions differ per market)

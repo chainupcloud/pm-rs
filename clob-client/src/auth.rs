@@ -1,13 +1,13 @@
 //! L1 / L2 authentication primitives and header constants.
 //!
-//! Chainup uses `PRED_*` header names (vs Polymarket's `POLY_*`) and standard base64 for the
+//! This SDK uses `PRED_*` header names (vs Polymarket's `POLY_*`) and standard base64 for the
 //! HMAC secret (vs URL-safe).
 //!
 //! Two flavours are supported:
 //!
 //! - **L1 (EIP-712)** — used by `/auth/api-key` create/derive/revoke. The signer produces a
 //!   `ClobAuth` signature; [`build_l1_headers`] packages it into the four (or five, with
-//!   `PRED_SCOPE_ID`) chainup headers.
+//!   `PRED_SCOPE_ID`) auth headers.
 //! - **L2 (HMAC-SHA256)** — used by trading endpoints. [`build_l2_headers`] computes the HMAC
 //!   over `timestamp + method + path + body` with the standard-base64-decoded secret and
 //!   returns the five `PRED_*` headers.
@@ -26,7 +26,7 @@ use crate::error::{Error, Result};
 use crate::signer::PMCup26Signer;
 use crate::types::Address;
 
-/// L1 / L2 chainup auth headers.
+/// L1 / L2 auth headers.
 pub mod header {
     // L1 (EIP-712) — used by `/auth/api-key` create/derive/revoke.
     pub const PRED_ADDRESS: &str = "PRED_ADDRESS";
@@ -87,7 +87,7 @@ pub fn current_timestamp() -> String {
 
 // ─── L1 ──────────────────────────────────────────────────────────────────
 
-/// Build the L1 (EIP-712) chainup auth headers. The caller controls the timestamp + nonce
+/// Build the L1 (EIP-712) auth headers. The caller controls the timestamp + nonce
 /// for determinism (tests / replays); see [`build_l1_headers_now`] for the live variant.
 ///
 /// `PRED_SCOPE_ID` is emitted only when the signer's scope id is non-zero (matching the
@@ -139,7 +139,7 @@ pub fn build_l1_headers(signer: &PMCup26Signer, nonce: Option<u32>) -> Result<He
 
 // ─── L2 ──────────────────────────────────────────────────────────────────
 
-/// Compute the chainup L2 HMAC signature.
+/// Compute the L2 HMAC signature.
 ///
 /// Mirrors `services/clob-service/internal/tradingapi/middleware/auth.go::computeHMAC`:
 ///
@@ -169,7 +169,7 @@ pub fn sign_l2(creds: &Credentials, timestamp: &str, method: &str, path: &str, b
     compute_l2_hmac(creds.secret.expose_secret(), timestamp, method, path, body)
 }
 
-/// Build the L2 HMAC chainup auth headers for a single request.
+/// Build the L2 HMAC auth headers for a single request.
 ///
 /// `path` must be the URL **path only** (no query string) — the server's
 /// `middleware/auth.go::L2AuthMiddleware` signs `c.Request.URL.Path`, which excludes the
@@ -233,7 +233,7 @@ mod tests {
     use crate::types::ScopeId;
 
     /// Deterministic Hardhat / Anvil account #0 private key. Public; matches both the rs-clob-client
-    /// reference vectors and the chainup golden fixture.
+    /// reference vectors and the golden fixture.
     const PRIVATE_KEY: &str = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
     const EXPECTED_ADDR: &str = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
 
@@ -252,7 +252,7 @@ mod tests {
     }
 
     /// Cross-check against `references/rs-clob-client/src/auth.rs::hmac_succeeds`.
-    /// The Polymarket reference vector uses URL-safe base64; chainup uses standard base64
+    /// The Polymarket reference vector uses URL-safe base64; this SDK uses standard base64
     /// so the output differs after the first `_/-` substitution. We compute both encodings
     /// for the same secret bytes and confirm the bytes are identical.
     #[test]

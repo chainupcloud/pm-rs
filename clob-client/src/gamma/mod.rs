@@ -1,7 +1,7 @@
-//! Chainup Gamma REST API client (events, markets, tags, series, comments,
+//! Gamma REST API client (events, markets, tags, series, comments,
 //! profiles, search, curation, sports config).
 //!
-//! Gamma is a separate REST service from CLOB; in chainup it lives at
+//! Gamma is a separate REST service from CLOB; it lives at
 //! `gamma-api.<tenant>` (e.g. `https://gamma-api.hermestrade.xyz`). Construct
 //! a [`GammaClient`] from a parent [`crate::Client`] via [`crate::Client::gamma`].
 //!

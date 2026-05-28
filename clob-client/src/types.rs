@@ -80,7 +80,7 @@ impl Side {
 ///
 /// - `Eoa` (0): direct EOA signature
 /// - `PolyProxy` (1): Polymarket proxy wallet (Magic / email login)
-/// - `PolyGnosisSafe` (2): browser wallet via Gnosis Safe (1-of-1) — chainup default
+/// - `PolyGnosisSafe` (2): browser wallet via Gnosis Safe (1-of-1) — default
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SignatureType {
     Eoa = 0,
